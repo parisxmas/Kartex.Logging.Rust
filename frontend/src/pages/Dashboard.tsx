@@ -10,7 +10,7 @@ export default function Dashboard() {
   const [dashboards, setDashboards] = useState<DashboardType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isEditMode, setIsEditMode] = useState(true);
+  const [isEditMode, setIsEditMode] = useState(false);
   const [showAddWidget, setShowAddWidget] = useState(false);
   const [configureWidgetId, setConfigureWidgetId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { apiClient, RealtimeMetrics } from '../api/client';
 
 const navItems = [
@@ -15,6 +16,7 @@ const navItems = [
 
 export default function Sidebar() {
   const { user, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const [metrics, setMetrics] = useState<RealtimeMetrics | null>(null);
   const [wsStatus, setWsStatus] = useState<'connected' | 'disconnected' | 'connecting'>('disconnected');
 
@@ -108,6 +110,20 @@ export default function Sidebar() {
           </NavLink>
         ))}
       </nav>
+
+      {/* Theme Toggle */}
+      <div className="px-4 py-2 border-t border-border">
+        <button
+          onClick={toggleTheme}
+          className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-bg-tertiary hover:bg-border transition-colors"
+        >
+          <span className="text-sm text-text-secondary">Theme</span>
+          <div className="flex items-center gap-2">
+            <span className="text-lg">{theme === 'dark' ? '🌙' : '☀️'}</span>
+            <span className="text-sm capitalize">{theme}</span>
+          </div>
+        </button>
+      </div>
 
       {/* User Info */}
       <div className="p-4 border-t border-border">

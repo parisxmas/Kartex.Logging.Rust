@@ -2,6 +2,48 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Dark theme (default) */
+:root, .dark {
+  --bg-primary: #0d1117;
+  --bg-secondary: #161b22;
+  --bg-tertiary: #21262d;
+  --border: #30363d;
+  --text-primary: #c9d1d9;
+  --text-secondary: #8b949e;
+  --accent: #58a6ff;
+  --accent-hover: #79b8ff;
+  --success: #3fb950;
+  --warning: #d29922;
+  --error: #f85149;
+  --level-trace: #8b949e;
+  --level-debug: #58a6ff;
+  --level-info: #3fb950;
+  --level-warn: #d29922;
+  --level-error: #f85149;
+  --level-fatal: #f85149;
+}
+
+/* Light theme */
+.light {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f6f8fa;
+  --bg-tertiary: #eaeef2;
+  --border: #d0d7de;
+  --text-primary: #1f2328;
+  --text-secondary: #656d76;
+  --accent: #0969da;
+  --accent-hover: #0550ae;
+  --success: #1a7f37;
+  --warning: #9a6700;
+  --error: #cf222e;
+  --level-trace: #656d76;
+  --level-debug: #0969da;
+  --level-info: #1a7f37;
+  --level-warn: #9a6700;
+  --level-error: #cf222e;
+  --level-fatal: #cf222e;
+}
+
 body {
   @apply bg-bg-primary text-text-primary;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
@@ -39,27 +81,33 @@ code, .mono {
 }
 
 .level-TRACE, .level-trace {
-  @apply bg-level-trace/20 text-level-trace;
+  background-color: color-mix(in srgb, var(--level-trace) 20%, transparent);
+  color: var(--level-trace);
 }
 
 .level-DEBUG, .level-debug {
-  @apply bg-level-debug/20 text-level-debug;
+  background-color: color-mix(in srgb, var(--level-debug) 20%, transparent);
+  color: var(--level-debug);
 }
 
 .level-INFO, .level-info {
-  @apply bg-level-info/20 text-level-info;
+  background-color: color-mix(in srgb, var(--level-info) 20%, transparent);
+  color: var(--level-info);
 }
 
 .level-WARN, .level-warn {
-  @apply bg-level-warn/20 text-level-warn;
+  background-color: color-mix(in srgb, var(--level-warn) 20%, transparent);
+  color: var(--level-warn);
 }
 
 .level-ERROR, .level-error {
-  @apply bg-level-error/20 text-level-error;
+  background-color: color-mix(in srgb, var(--level-error) 20%, transparent);
+  color: var(--level-error);
 }
 
 .level-FATAL, .level-fatal {
-  @apply bg-level-fatal/20 text-level-fatal;
+  background-color: color-mix(in srgb, var(--level-fatal) 20%, transparent);
+  color: var(--level-fatal);
 }
 
 /* Status badges */
@@ -68,11 +116,13 @@ code, .mono {
 }
 
 .status-ok {
-  @apply bg-success/20 text-success;
+  background-color: color-mix(in srgb, var(--success) 20%, transparent);
+  color: var(--success);
 }
 
 .status-error {
-  @apply bg-error/20 text-error;
+  background-color: color-mix(in srgb, var(--error) 20%, transparent);
+  color: var(--error);
 }
 
 /* WebSocket status indicator */
@@ -124,7 +174,8 @@ code, .mono {
 }
 
 .react-grid-item.react-grid-placeholder {
-  @apply bg-accent/20 border-2 border-dashed border-accent rounded-lg;
+  background-color: color-mix(in srgb, var(--accent) 20%, transparent);
+  @apply border-2 border-dashed border-accent rounded-lg;
   transition-duration: 100ms;
   z-index: 2;
   user-select: none;
