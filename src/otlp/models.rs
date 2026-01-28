@@ -170,6 +170,8 @@ pub struct TraceQueryParams {
     pub min_duration_ms: Option<f64>,
     pub max_duration_ms: Option<f64>,
     pub status: Option<String>,
+    /// Full-text search query for span names and services
+    pub search: Option<String>,
     #[serde(default = "default_trace_limit")]
     pub limit: i64,
     #[serde(default)]

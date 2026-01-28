@@ -55,6 +55,27 @@ impl DbClient {
             .options(IndexOptions::builder().sparse(true).build())
             .build();
 
+        // Full-text search index on message, service, and exception
+        let text_index = IndexModel::builder()
+            .keys(doc! {
+                "message": "text",
+                "service": "text",
+                "exception": "text",
+                "message_template": "text"
+            })
+            .options(
+                IndexOptions::builder()
+                    .name("logs_text_search".to_string())
+                    .weights(doc! {
+                        "message": 10,
+                        "exception": 5,
+                        "service": 3,
+                        "message_template": 2
+                    })
+                    .build()
+            )
+            .build();
+
         logs_collection
             .create_indexes(vec![
                 timestamp_index,
@@ -62,6 +83,7 @@ impl DbClient {
                 service_index,
                 compound_index,
                 trace_id_index,
+                text_index,
             ])
             .await?;
 
@@ -87,6 +109,25 @@ impl DbClient {
             .options(IndexOptions::builder().sparse(true).build())
             .build();
 
+        // Full-text search index for spans
+        let span_text_index = IndexModel::builder()
+            .keys(doc! {
+                "name": "text",
+                "service": "text",
+                "status.message": "text"
+            })
+            .options(
+                IndexOptions::builder()
+                    .name("spans_text_search".to_string())
+                    .weights(doc! {
+                        "name": 10,
+                        "service": 5,
+                        "status.message": 3
+                    })
+                    .build()
+            )
+            .build();
+
         spans_collection
             .create_indexes(vec![
                 span_trace_id_index,
@@ -94,6 +135,7 @@ impl DbClient {
                 span_start_time_index,
                 span_compound_index,
                 span_parent_index,
+                span_text_index,
             ])
             .await?;
 

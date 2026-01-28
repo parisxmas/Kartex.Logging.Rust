@@ -164,6 +164,11 @@ impl SpanRepository {
             }
         }
 
+        // Full-text search on span name and service
+        if let Some(search_term) = &params.search {
+            match_stage.insert("$text", doc! { "$search": search_term });
+        }
+
         let pipeline = vec![
             doc! { "$match": match_stage },
             doc! { "$sort": { "start_time": -1 } },

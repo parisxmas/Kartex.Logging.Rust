@@ -140,6 +140,56 @@ curl -X POST http://localhost:4318/v1/logs \
   -d '{"resourceLogs":[...]}'
 ```
 
+## Full-Text Search
+
+Kartex uses MongoDB's full-text search for fast and efficient searching across logs and traces.
+
+### Logs Search
+
+Search across multiple fields with weighted relevance:
+- **message** (weight: 10) - Primary search field
+- **exception** (weight: 5) - Exception details
+- **service** (weight: 3) - Service name
+- **message_template** (weight: 2) - Serilog message templates
+
+```bash
+# Search logs for "connection timeout"
+curl "http://localhost:8443/api/logs?search=connection+timeout"
+
+# Combine with filters
+curl "http://localhost:8443/api/logs?search=database&level=ERROR&service=api"
+```
+
+### Traces Search
+
+Search spans by name and service:
+- **name** (weight: 10) - Span operation name
+- **service** (weight: 5) - Service name
+- **status.message** (weight: 3) - Error messages
+
+```bash
+# Search traces for "HTTP GET"
+curl "http://localhost:8443/api/traces?search=HTTP+GET"
+
+# Find slow database operations
+curl "http://localhost:8443/api/traces?search=database&min_duration_ms=1000"
+```
+
+### Search Syntax
+
+MongoDB text search supports:
+- **Phrases**: `"exact phrase"` - Match exact phrases
+- **Negation**: `-excluded` - Exclude terms
+- **Multiple terms**: `error timeout` - Match any term (OR)
+
+```bash
+# Search for exact phrase
+curl 'http://localhost:8443/api/logs?search="connection+refused"'
+
+# Exclude terms
+curl 'http://localhost:8443/api/logs?search=error+-timeout'
+```
+
 ## API Endpoints
 
 ### Logs
@@ -155,7 +205,7 @@ Query parameters for `/api/logs`:
 - `level` - Filter by log level
 - `service` - Filter by service name
 - `start_time` / `end_time` - Time range (ISO 8601)
-- `search` - Full-text search
+- `search` - Full-text search across message, service, exception, and message template
 - `trace_id` - Filter by trace ID
 - `limit` / `skip` - Pagination
 
@@ -169,6 +219,9 @@ Query parameters for `/api/logs`:
 Query parameters for `/api/traces`:
 - `service` - Filter by service name
 - `start_time` / `end_time` - Time range
+- `search` - Full-text search across span names and services
+- `min_duration_ms` / `max_duration_ms` - Duration filters
+- `status` - Filter by status (OK, ERROR)
 - `limit` / `skip` - Pagination
 
 ### Alerts

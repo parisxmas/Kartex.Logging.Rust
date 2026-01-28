@@ -106,10 +106,12 @@ impl LogRepository {
             filter.insert("timestamp", time_filter);
         }
 
+        // Use full-text search if search term is provided
         if let Some(search_term) = search {
-            filter.insert("message", doc! { "$regex": search_term, "$options": "i" });
+            filter.insert("$text", doc! { "$search": search_term });
         }
 
+        // When using text search, we can optionally sort by text score
         let find_options = FindOptions::builder()
             .sort(doc! { "timestamp": -1 })
             .limit(limit)
