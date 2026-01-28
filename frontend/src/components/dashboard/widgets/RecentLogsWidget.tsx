@@ -1,4 +1,6 @@
+import { useState, useMemo } from 'react';
 import { LogEntry, WidgetConfig } from '../../../api/client';
+import SavedFilterSelect, { FilterSelection } from './SavedFilterSelect';
 
 interface RecentLogsData {
   logs: LogEntry[];
@@ -39,43 +41,77 @@ function getLevelBadgeClass(level: string): string {
 }
 
 export default function RecentLogsWidget({ data }: RecentLogsWidgetProps) {
-  const logsData = data as RecentLogsData | undefined;
-  const logs = logsData?.logs ?? [];
+  const [activeFilter, setActiveFilter] = useState<FilterSelection | null>(null);
 
-  if (logs.length === 0) {
-    return (
-      <div className="h-full flex items-center justify-center text-text-secondary text-sm">
-        No logs available
-      </div>
-    );
-  }
+  const logsData = data as RecentLogsData | undefined;
+  const allLogs = logsData?.logs ?? [];
+
+  // Apply client-side filtering based on saved filter
+  const filteredLogs = useMemo(() => {
+    if (!activeFilter) return allLogs;
+
+    return allLogs.filter((log) => {
+      if (activeFilter.level && log.level.toUpperCase() !== activeFilter.level.toUpperCase()) {
+        return false;
+      }
+      if (activeFilter.service && log.service !== activeFilter.service) {
+        return false;
+      }
+      if (activeFilter.search) {
+        const searchLower = activeFilter.search.toLowerCase();
+        if (!log.message.toLowerCase().includes(searchLower)) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [allLogs, activeFilter]);
 
   return (
-    <div className="h-full overflow-y-auto">
-      <div className="space-y-1">
-        {logs.map((log, index) => {
-          const id = typeof log._id === 'string' ? log._id : log._id?.$oid || index;
-          return (
-            <div
-              key={id}
-              className="flex items-start gap-2 p-2 rounded bg-bg-tertiary hover:bg-border/30 transition-colors"
-            >
-              <span
-                className={`px-1.5 py-0.5 rounded text-[10px] font-medium uppercase shrink-0 ${getLevelBadgeClass(log.level)}`}
-              >
-                {log.level}
-              </span>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm truncate">{log.message}</p>
-                <div className="flex items-center gap-2 text-xs text-text-secondary mt-0.5">
-                  <span>{log.service}</span>
-                  <span>{formatTimestamp(log.timestamp)}</span>
-                </div>
-              </div>
-            </div>
-          );
-        })}
+    <div className="h-full flex flex-col">
+      {/* Filter bar */}
+      <div className="flex items-center justify-between mb-2 shrink-0">
+        <SavedFilterSelect onFilterChange={setActiveFilter} compact />
+        {activeFilter && (
+          <span className="text-xs text-text-secondary">
+            {filteredLogs.length}/{allLogs.length}
+          </span>
+        )}
       </div>
+
+      {/* Logs list */}
+      {filteredLogs.length === 0 ? (
+        <div className="flex-1 flex items-center justify-center text-text-secondary text-sm">
+          {allLogs.length === 0 ? 'No logs available' : 'No matching logs'}
+        </div>
+      ) : (
+        <div className="flex-1 overflow-y-auto">
+          <div className="space-y-1">
+            {filteredLogs.map((log, index) => {
+              const id = typeof log._id === 'string' ? log._id : log._id?.$oid || index;
+              return (
+                <div
+                  key={id}
+                  className="flex items-start gap-2 p-2 rounded bg-bg-tertiary hover:bg-border/30 transition-colors"
+                >
+                  <span
+                    className={`px-1.5 py-0.5 rounded text-[10px] font-medium uppercase shrink-0 ${getLevelBadgeClass(log.level)}`}
+                  >
+                    {log.level}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm truncate">{log.message}</p>
+                    <div className="flex items-center gap-2 text-xs text-text-secondary mt-0.5">
+                      <span>{log.service}</span>
+                      <span>{formatTimestamp(log.timestamp)}</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { LogEntry, WidgetConfigLiveStream } from '../../../api/client';
+import SavedFilterSelect, { FilterSelection } from './SavedFilterSelect';
 
 interface WsMessage {
   type: 'log' | 'span' | 'metrics' | 'connected' | 'error';
@@ -15,9 +16,15 @@ export default function LiveStreamWidget({ config }: LiveStreamWidgetProps) {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [isPaused, setIsPaused] = useState(false);
   const [wsStatus, setWsStatus] = useState<'connected' | 'disconnected' | 'connecting'>('disconnected');
+  const [savedFilter, setSavedFilter] = useState<FilterSelection | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const maxLogs = config.max_logs || 50;
+
+  // Combine config filters with saved filter (saved filter takes precedence)
+  const activeLevel = savedFilter?.level || config.level;
+  const activeService = savedFilter?.service || config.service;
+  const activeSearch = savedFilter?.search;
 
   useEffect(() => {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -49,9 +56,10 @@ export default function LiveStreamWidget({ config }: LiveStreamWidgetProps) {
           if (msg.type === 'log' && msg.data && !isPaused) {
             const log = msg.data as LogEntry;
 
-            // Apply filters
-            if (config.level && log.level !== config.level) return;
-            if (config.service && log.service !== config.service) return;
+            // Apply filters (config + saved filter)
+            if (activeLevel && log.level.toUpperCase() !== activeLevel.toUpperCase()) return;
+            if (activeService && log.service !== activeService) return;
+            if (activeSearch && !log.message.toLowerCase().includes(activeSearch.toLowerCase())) return;
 
             setLogs((prev) => {
               const newLogs = [log, ...prev];
@@ -76,7 +84,12 @@ export default function LiveStreamWidget({ config }: LiveStreamWidgetProps) {
         wsRef.current.close();
       }
     };
-  }, [isPaused, config.level, config.service, config.auto_scroll, maxLogs]);
+  }, [isPaused, activeLevel, activeService, activeSearch, config.auto_scroll, maxLogs]);
+
+  // Clear logs when filter changes
+  useEffect(() => {
+    setLogs([]);
+  }, [savedFilter]);
 
   const formatTime = (timestamp: string) => {
     return new Date(timestamp).toLocaleTimeString();
@@ -101,23 +114,26 @@ export default function LiveStreamWidget({ config }: LiveStreamWidgetProps) {
   return (
     <div className="h-full flex flex-col">
       {/* Status bar */}
-      <div className="flex items-center justify-between mb-2 text-xs">
+      <div className="flex items-center justify-between mb-2 text-xs gap-2">
         <div className="flex items-center gap-2">
-          <span className={`w-2 h-2 rounded-full ${
+          <span className={`w-2 h-2 rounded-full shrink-0 ${
             wsStatus === 'connected' ? 'bg-success' :
             wsStatus === 'connecting' ? 'bg-warning animate-pulse' :
             'bg-error'
           }`} />
-          <span className="text-text-secondary">{logs.length} logs</span>
+          <SavedFilterSelect onFilterChange={setSavedFilter} compact />
         </div>
-        <button
-          onClick={() => setIsPaused(!isPaused)}
-          className={`px-2 py-0.5 rounded text-xs ${
-            isPaused ? 'bg-success/20 text-success' : 'bg-warning/20 text-warning'
-          }`}
-        >
-          {isPaused ? 'Resume' : 'Pause'}
-        </button>
+        <div className="flex items-center gap-2">
+          <span className="text-text-secondary">{logs.length}</span>
+          <button
+            onClick={() => setIsPaused(!isPaused)}
+            className={`px-2 py-0.5 rounded text-xs ${
+              isPaused ? 'bg-success/20 text-success' : 'bg-warning/20 text-warning'
+            }`}
+          >
+            {isPaused ? '▶' : '⏸'}
+          </button>
+        </div>
       </div>
 
       {/* Log stream */}

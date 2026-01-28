@@ -547,12 +547,13 @@ The web interface at http://localhost:8443 provides a fully **mobile-responsive*
 - **Dashboard** - Customizable drag-and-drop widgets with persistent layouts
   - Log Count - Total/filtered log counts
   - Error Rate Chart - Errors over time (Recharts)
-  - Recent Logs - Scrollable list of latest logs
+  - Recent Logs - Scrollable list with saved filter dropdown
   - Trace Latency Histogram - Distribution of trace durations
   - Service Health - Status indicators per service
   - Custom Metric - Single metric display
-  - Live Stream - Real-time log streaming with level/service filters
+  - Live Stream - Real-time log streaming with saved filter dropdown
   - Plugin Widget - Load custom JavaScript or WASM plugins
+  - **Saved Filters** - Apply saved query filters to Recent Logs and Live Stream widgets
 - **Logs View** - Search, filter, and browse logs with real-time updates
   - Visual Query Builder with save/load functionality
   - Regex search support with field selection
