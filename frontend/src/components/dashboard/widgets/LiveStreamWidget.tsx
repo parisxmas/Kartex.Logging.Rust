@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { LogEntry, WidgetConfigLiveStream } from '../../../api/client';
 import { FilterSelection } from './SavedFilterSelect';
 
@@ -21,11 +21,7 @@ export default function LiveStreamWidget({ config, filter }: LiveStreamWidgetPro
   const containerRef = useRef<HTMLDivElement>(null);
   const maxLogs = config.max_logs || 50;
 
-  // Combine config filters with saved filter (saved filter takes precedence)
-  const activeLevel = filter?.level || config.level;
-  const activeService = filter?.service || config.service;
-  const activeSearch = filter?.search;
-
+  // WebSocket connection - only reconnect when paused state or config changes
   useEffect(() => {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${protocol}//${window.location.host}/ws`;
@@ -56,10 +52,9 @@ export default function LiveStreamWidget({ config, filter }: LiveStreamWidgetPro
           if (msg.type === 'log' && msg.data && !isPaused) {
             const log = msg.data as LogEntry;
 
-            // Apply filters (config + saved filter)
-            if (activeLevel && log.level.toUpperCase() !== activeLevel.toUpperCase()) return;
-            if (activeService && log.service !== activeService) return;
-            if (activeSearch && !log.message.toLowerCase().includes(activeSearch.toLowerCase())) return;
+            // Apply config-level filters only (widget config)
+            if (config.level && log.level.toUpperCase() !== config.level.toUpperCase()) return;
+            if (config.service && log.service !== config.service) return;
 
             setLogs((prev) => {
               const newLogs = [log, ...prev];
@@ -84,12 +79,25 @@ export default function LiveStreamWidget({ config, filter }: LiveStreamWidgetPro
         wsRef.current.close();
       }
     };
-  }, [isPaused, activeLevel, activeService, activeSearch, config.auto_scroll, maxLogs]);
+  }, [isPaused, config.level, config.service, config.auto_scroll, maxLogs]);
 
-  // Clear logs when filter changes
-  useEffect(() => {
-    setLogs([]);
-  }, [filter]);
+  // Apply saved filter on top of received logs (client-side filtering)
+  const filteredLogs = useMemo(() => {
+    if (!filter) return logs;
+
+    return logs.filter((log) => {
+      if (filter.level && log.level.toUpperCase() !== filter.level.toUpperCase()) {
+        return false;
+      }
+      if (filter.service && log.service !== filter.service) {
+        return false;
+      }
+      if (filter.search && !log.message.toLowerCase().includes(filter.search.toLowerCase())) {
+        return false;
+      }
+      return true;
+    });
+  }, [logs, filter]);
 
   const formatTime = (timestamp: string) => {
     return new Date(timestamp).toLocaleTimeString();
@@ -126,7 +134,9 @@ export default function LiveStreamWidget({ config, filter }: LiveStreamWidgetPro
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-text-secondary">{logs.length}</span>
+          <span className="text-text-secondary">
+            {filter ? `${filteredLogs.length}/${logs.length}` : logs.length}
+          </span>
           <button
             onClick={() => setIsPaused(!isPaused)}
             className={`px-2 py-0.5 rounded text-xs ${
@@ -143,12 +153,12 @@ export default function LiveStreamWidget({ config, filter }: LiveStreamWidgetPro
         ref={containerRef}
         className="flex-1 overflow-auto font-mono text-xs space-y-0.5"
       >
-        {logs.length === 0 ? (
+        {filteredLogs.length === 0 ? (
           <div className="p-4 text-center text-text-secondary">
-            Waiting for logs...
+            {logs.length === 0 ? 'Waiting for logs...' : 'No matching logs'}
           </div>
         ) : (
-          logs.map((log, index) => {
+          filteredLogs.map((log, index) => {
             const id = typeof log._id === 'object' ? log._id.$oid : log._id;
             return (
               <div

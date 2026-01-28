@@ -24,6 +24,9 @@ interface WidgetContainerProps {
 // Widget types that support saved filters
 const FILTERABLE_WIDGETS = ['recent_logs', 'live_stream'];
 
+// Widget types that don't need refresh button (they auto-refresh)
+const NO_REFRESH_WIDGETS = ['live_stream'];
+
 export default function WidgetContainer({
   widget,
   data,
@@ -36,6 +39,7 @@ export default function WidgetContainer({
 }: WidgetContainerProps) {
   const [activeFilter, setActiveFilter] = useState<FilterSelection | null>(null);
   const showFilterSelect = FILTERABLE_WIDGETS.includes(widget.widget_type);
+  const showRefreshButton = !NO_REFRESH_WIDGETS.includes(widget.widget_type);
 
   const renderWidget = (): ReactNode => {
     if (error) {
@@ -95,15 +99,17 @@ export default function WidgetContainer({
           {showFilterSelect && (
             <SavedFilterSelect onFilterChange={setActiveFilter} compact />
           )}
-          <button
-            onClick={onRefresh}
-            className="p-1 text-text-secondary hover:text-text-primary transition-colors"
-            title="Refresh"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-          </button>
+          {showRefreshButton && (
+            <button
+              onClick={onRefresh}
+              className="p-1 text-text-secondary hover:text-text-primary transition-colors"
+              title="Refresh"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            </button>
+          )}
           {isEditMode && (
             <>
               <button

@@ -48,6 +48,7 @@ export default function RecentLogsWidget({ data, filter }: RecentLogsWidgetProps
   // Apply client-side filtering based on saved filter
   const filteredLogs = useMemo(() => {
     if (!filter) return allLogs;
+    console.log('RecentLogsWidget: Filtering with', filter);
 
     return allLogs.filter((log) => {
       if (filter.level && log.level.toUpperCase() !== filter.level.toUpperCase()) {

@@ -30,17 +30,23 @@ export default function SavedFilterSelect({ onFilterChange, compact = false }: S
   const [savedQueries, setSavedQueries] = useState<SavedQuery[]>([]);
   const [selectedFilter, setSelectedFilter] = useState<string>('');
 
-  useEffect(() => {
+  const loadSavedQueries = () => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
-        setSavedQueries(JSON.parse(stored));
+        const queries = JSON.parse(stored);
+        console.log('SavedFilterSelect: Loaded queries', queries);
+        setSavedQueries(queries);
       }
     } catch (e) {
       console.error('Failed to load saved queries:', e);
     }
+  };
 
-    // Listen for storage changes from other tabs/components
+  useEffect(() => {
+    loadSavedQueries();
+
+    // Listen for storage changes from other tabs
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === STORAGE_KEY && e.newValue) {
         try {
@@ -51,8 +57,17 @@ export default function SavedFilterSelect({ onFilterChange, compact = false }: S
       }
     };
 
+    // Listen for custom event from same tab
+    const handleCustomEvent = () => {
+      loadSavedQueries();
+    };
+
     window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    window.addEventListener('kartex-queries-updated', handleCustomEvent);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('kartex-queries-updated', handleCustomEvent);
+    };
   }, []);
 
   const handleChange = (value: string) => {
@@ -65,25 +80,33 @@ export default function SavedFilterSelect({ onFilterChange, compact = false }: S
 
     const query = savedQueries.find(q => q.name === value);
     if (!query) {
+      console.log('SavedFilterSelect: Query not found:', value);
       onFilterChange(null);
       return;
     }
 
-    // Extract level and service from conditions
+    console.log('SavedFilterSelect: Found query', query);
+
+    // Extract level, service, and message from conditions
     const filter: FilterSelection = {};
 
     for (const condition of query.conditions) {
-      if (condition.field === 'level' && condition.operator === 'equals' && condition.value) {
+      console.log('SavedFilterSelect: Processing condition', condition);
+      // For level - accept any operator (equals, contains, etc.)
+      if (condition.field === 'level' && condition.value) {
         filter.level = condition.value;
       }
-      if (condition.field === 'service' && condition.operator === 'equals' && condition.value) {
+      // For service - accept any operator
+      if (condition.field === 'service' && condition.value) {
         filter.service = condition.value;
       }
+      // For message - use as search text
       if (condition.field === 'message' && condition.value) {
         filter.search = condition.value;
       }
     }
 
+    console.log('SavedFilterSelect: Final filter', filter);
     onFilterChange(filter);
   };
 
