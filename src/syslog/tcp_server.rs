@@ -4,13 +4,13 @@ use tokio::net::{TcpListener, TcpStream};
 use tracing::{error, info, warn};
 
 use super::parser::{parse_octet_counted, parse_syslog_message};
-use crate::db::repository::LogRepository;
+use crate::db::LogBatcher;
 use crate::realtime::{MetricsTracker, WsBroadcaster};
 
 /// Syslog TCP Server (RFC 5425 with octet-counting and newline framing)
 pub struct SyslogTcpServer {
     listener: TcpListener,
-    repository: Arc<LogRepository>,
+    batcher: LogBatcher,
     metrics: Arc<MetricsTracker>,
     broadcaster: Arc<WsBroadcaster>,
     max_message_size: usize,
@@ -19,7 +19,7 @@ pub struct SyslogTcpServer {
 impl SyslogTcpServer {
     pub async fn new(
         port: u16,
-        repository: Arc<LogRepository>,
+        batcher: LogBatcher,
         metrics: Arc<MetricsTracker>,
         broadcaster: Arc<WsBroadcaster>,
         max_message_size: usize,
@@ -30,7 +30,7 @@ impl SyslogTcpServer {
 
         Ok(Self {
             listener,
-            repository,
+            batcher,
             metrics,
             broadcaster,
             max_message_size,
@@ -42,7 +42,7 @@ impl SyslogTcpServer {
             match self.listener.accept().await {
                 Ok((stream, addr)) => {
                     let source_ip = addr.ip().to_string();
-                    let repo = self.repository.clone();
+                    let batcher = self.batcher.clone();
                     let metrics = self.metrics.clone();
                     let broadcaster = self.broadcaster.clone();
                     let max_message_size = self.max_message_size;
@@ -51,7 +51,7 @@ impl SyslogTcpServer {
                         if let Err(e) = handle_connection(
                             stream,
                             source_ip.clone(),
-                            repo,
+                            batcher,
                             metrics,
                             broadcaster,
                             max_message_size,
@@ -74,7 +74,7 @@ impl SyslogTcpServer {
 async fn handle_connection(
     stream: TcpStream,
     source_ip: String,
-    repository: Arc<LogRepository>,
+    batcher: LogBatcher,
     metrics: Arc<MetricsTracker>,
     broadcaster: Arc<WsBroadcaster>,
     max_message_size: usize,
@@ -92,9 +92,9 @@ async fn handle_connection(
     let use_octet_counting = peek_buf[0].is_ascii_digit();
 
     if use_octet_counting {
-        handle_octet_counted(&mut reader, &peek_buf, source_ip, repository, metrics, broadcaster, max_message_size).await
+        handle_octet_counted(&mut reader, &peek_buf, source_ip, batcher, metrics, broadcaster, max_message_size).await
     } else {
-        handle_newline_framed(&mut reader, &peek_buf, source_ip, repository, metrics, broadcaster, max_message_size).await
+        handle_newline_framed(&mut reader, &peek_buf, source_ip, batcher, metrics, broadcaster, max_message_size).await
     }
 }
 
@@ -104,7 +104,7 @@ async fn handle_octet_counted(
     reader: &mut BufReader<TcpStream>,
     first_byte: &[u8],
     source_ip: String,
-    repository: Arc<LogRepository>,
+    batcher: LogBatcher,
     metrics: Arc<MetricsTracker>,
     broadcaster: Arc<WsBroadcaster>,
     max_message_size: usize,
@@ -132,7 +132,7 @@ async fn handle_octet_counted(
                     process_message(
                         msg_bytes,
                         source_ip.clone(),
-                        repository.clone(),
+                        &batcher,
                         metrics.clone(),
                         broadcaster.clone(),
                     )
@@ -157,7 +157,7 @@ async fn handle_newline_framed(
     reader: &mut BufReader<TcpStream>,
     first_byte: &[u8],
     source_ip: String,
-    repository: Arc<LogRepository>,
+    batcher: LogBatcher,
     metrics: Arc<MetricsTracker>,
     broadcaster: Arc<WsBroadcaster>,
     max_message_size: usize,
@@ -178,7 +178,7 @@ async fn handle_newline_framed(
         process_message(
             line.trim().as_bytes(),
             source_ip.clone(),
-            repository.clone(),
+            &batcher,
             metrics.clone(),
             broadcaster.clone(),
         )
@@ -196,7 +196,7 @@ async fn handle_newline_framed(
                     process_message(
                         trimmed.as_bytes(),
                         source_ip.clone(),
-                        repository.clone(),
+                        &batcher,
                         metrics.clone(),
                         broadcaster.clone(),
                     )
@@ -217,7 +217,7 @@ async fn handle_newline_framed(
 async fn process_message(
     data: &[u8],
     source_ip: String,
-    repository: Arc<LogRepository>,
+    batcher: &LogBatcher,
     metrics: Arc<MetricsTracker>,
     broadcaster: Arc<WsBroadcaster>,
 ) {
@@ -231,9 +231,9 @@ async fn process_message(
             // Broadcast to WebSocket clients
             broadcaster.broadcast_log(log_entry.clone());
 
-            // Store in database
-            if let Err(e) = repository.insert_log(log_entry).await {
-                error!("Failed to store syslog from {}: {}", source_ip, e);
+            // Add to batch queue (non-blocking)
+            if let Err(e) = batcher.try_add(log_entry) {
+                error!("Failed to queue syslog from {}: {}", source_ip, e);
             }
         }
         Err(e) => {
@@ -245,12 +245,12 @@ async fn process_message(
 /// Start the Syslog TCP server
 pub async fn start_syslog_tcp_server(
     port: u16,
-    repository: Arc<LogRepository>,
+    batcher: LogBatcher,
     metrics: Arc<MetricsTracker>,
     broadcaster: Arc<WsBroadcaster>,
     max_message_size: usize,
 ) -> anyhow::Result<()> {
     let server =
-        SyslogTcpServer::new(port, repository, metrics, broadcaster, max_message_size).await?;
+        SyslogTcpServer::new(port, batcher, metrics, broadcaster, max_message_size).await?;
     server.run().await
 }

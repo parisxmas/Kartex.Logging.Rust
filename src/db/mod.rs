@@ -3,10 +3,12 @@ use bson::{doc, Document};
 use mongodb::{Client, Collection, Database, IndexModel};
 use mongodb::options::{ClientOptions, IndexOptions};
 
+pub mod batcher;
 pub mod dashboard;
 pub mod models;
 pub mod repository;
 
+pub use batcher::{BatchConfig, LogBatcher};
 pub use dashboard::DashboardRepository;
 
 #[allow(dead_code)]
@@ -16,6 +18,7 @@ pub struct DbClient {
     pub alerts_collection: Collection<Document>,
     pub spans_collection: Collection<Document>,
     pub dashboards_collection: Collection<Document>,
+    pub notification_channels_collection: Collection<Document>,
 }
 
 #[allow(dead_code)]
@@ -38,6 +41,7 @@ impl DbClient {
         let alerts_collection = database.collection::<Document>("alerts");
         let spans_collection = database.collection::<Document>(spans_collection_name);
         let dashboards_collection = database.collection::<Document>("dashboards");
+        let notification_channels_collection = database.collection::<Document>("notification_channels");
 
         // Create indexes for logs collection
         let timestamp_index = IndexModel::builder()
@@ -173,6 +177,7 @@ impl DbClient {
             alerts_collection,
             spans_collection,
             dashboards_collection,
+            notification_channels_collection,
         })
     }
 }

@@ -3,13 +3,13 @@ use tokio::net::UdpSocket;
 use tracing::{error, info, warn};
 
 use super::parser::parse_gelf_message;
-use crate::db::repository::LogRepository;
+use crate::db::LogBatcher;
 use crate::realtime::{MetricsTracker, WsBroadcaster};
 
 /// GELF UDP Server
 pub struct GelfServer {
     socket: UdpSocket,
-    repository: Arc<LogRepository>,
+    batcher: LogBatcher,
     metrics: Arc<MetricsTracker>,
     broadcaster: Arc<WsBroadcaster>,
 }
@@ -17,7 +17,7 @@ pub struct GelfServer {
 impl GelfServer {
     pub async fn new(
         port: u16,
-        repository: Arc<LogRepository>,
+        batcher: LogBatcher,
         metrics: Arc<MetricsTracker>,
         broadcaster: Arc<WsBroadcaster>,
     ) -> anyhow::Result<Self> {
@@ -27,7 +27,7 @@ impl GelfServer {
 
         Ok(Self {
             socket,
-            repository,
+            batcher,
             metrics,
             broadcaster,
         })
@@ -42,31 +42,26 @@ impl GelfServer {
                 Ok((len, addr)) => {
                     let packet = buf[..len].to_vec();
                     let source_ip = addr.ip().to_string();
-                    let repo = self.repository.clone();
-                    let metrics = self.metrics.clone();
-                    let broadcaster = self.broadcaster.clone();
 
-                    tokio::spawn(async move {
-                        match parse_gelf_message(&packet, source_ip.clone()) {
-                            Ok(log_entry) => {
-                                let level = format!("{:?}", log_entry.level).to_uppercase();
+                    match parse_gelf_message(&packet, source_ip.clone()) {
+                        Ok(log_entry) => {
+                            let level = format!("{:?}", log_entry.level).to_uppercase();
 
-                                // Record metrics
-                                metrics.record_log_by_level(&level).await;
+                            // Record metrics
+                            self.metrics.record_log_by_level(&level).await;
 
-                                // Broadcast to WebSocket clients
-                                broadcaster.broadcast_log(log_entry.clone());
+                            // Broadcast to WebSocket clients
+                            self.broadcaster.broadcast_log(log_entry.clone());
 
-                                // Store in database
-                                if let Err(e) = repo.insert_log(log_entry).await {
-                                    error!("Failed to store GELF log from {}: {}", source_ip, e);
-                                }
-                            }
-                            Err(e) => {
-                                warn!("Failed to parse GELF message from {}: {}", addr, e);
+                            // Add to batch queue (non-blocking)
+                            if let Err(e) = self.batcher.try_add(log_entry) {
+                                error!("Failed to queue GELF log from {}: {}", source_ip, e);
                             }
                         }
-                    });
+                        Err(e) => {
+                            warn!("Failed to parse GELF message from {}: {}", addr, e);
+                        }
+                    }
                 }
                 Err(e) => {
                     error!("Error receiving GELF UDP packet: {}", e);
@@ -79,10 +74,10 @@ impl GelfServer {
 /// Start the GELF UDP server
 pub async fn start_gelf_server(
     port: u16,
-    repository: Arc<LogRepository>,
+    batcher: LogBatcher,
     metrics: Arc<MetricsTracker>,
     broadcaster: Arc<WsBroadcaster>,
 ) -> anyhow::Result<()> {
-    let server = GelfServer::new(port, repository, metrics, broadcaster).await?;
+    let server = GelfServer::new(port, batcher, metrics, broadcaster).await?;
     server.run().await
 }

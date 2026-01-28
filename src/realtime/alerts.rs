@@ -8,6 +8,7 @@ use tokio::sync::RwLock;
 use tracing::{error, info, warn};
 
 use super::metrics::MetricsTracker;
+use crate::notifications::{NotificationChannel, NotificationSender};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AlertRule {
@@ -17,6 +18,9 @@ pub struct AlertRule {
     pub enabled: bool,
     pub condition: AlertCondition,
     pub action: AlertAction,
+    /// List of notification channel IDs to notify when alert triggers
+    #[serde(default)]
+    pub notification_channels: Vec<String>,
     #[serde(default)]
     pub last_triggered: Option<DateTime<Utc>>,
     #[serde(default)]
@@ -64,7 +68,9 @@ pub struct AlertNotification {
 
 pub struct AlertManager {
     collection: Collection<Document>,
+    channels_collection: Collection<Document>,
     http_client: reqwest::Client,
+    notification_sender: NotificationSender,
     metrics: Arc<MetricsTracker>,
     /// Cooldown period in seconds to prevent alert spam
     cooldown_secs: i64,
@@ -75,17 +81,110 @@ pub struct AlertManager {
 impl AlertManager {
     pub fn new(
         collection: Collection<Document>,
+        channels_collection: Collection<Document>,
         metrics: Arc<MetricsTracker>,
         cooldown_secs: i64,
     ) -> Arc<Self> {
         Arc::new(Self {
             collection,
+            channels_collection,
             http_client: reqwest::Client::new(),
+            notification_sender: NotificationSender::new(),
             metrics,
             cooldown_secs,
             last_triggers: RwLock::new(std::collections::HashMap::new()),
         })
     }
+
+    // ===== Notification Channel Methods =====
+
+    /// Create a new notification channel
+    pub async fn create_channel(&self, mut channel: NotificationChannel) -> Result<String> {
+        let now = Utc::now();
+        channel.created_at = now;
+        channel.updated_at = now;
+
+        let doc = bson::to_document(&channel)?;
+        let result = self.channels_collection.insert_one(doc).await?;
+        Ok(result.inserted_id.as_object_id().unwrap().to_hex())
+    }
+
+    /// Get all notification channels
+    pub async fn get_channels(&self) -> Result<Vec<NotificationChannel>> {
+        use futures::TryStreamExt;
+
+        let cursor = self.channels_collection.find(doc! {}).await?;
+        let docs: Vec<Document> = cursor.try_collect().await?;
+
+        let channels: Vec<NotificationChannel> = docs
+            .into_iter()
+            .filter_map(|doc| bson::from_document(doc).ok())
+            .collect();
+
+        Ok(channels)
+    }
+
+    /// Get channel by ID
+    pub async fn get_channel(&self, id: &str) -> Result<Option<NotificationChannel>> {
+        let object_id = ObjectId::parse_str(id)?;
+        let doc = self.channels_collection.find_one(doc! { "_id": object_id }).await?;
+        Ok(doc.and_then(|d| bson::from_document(d).ok()))
+    }
+
+    /// Update notification channel
+    pub async fn update_channel(&self, id: &str, mut channel: NotificationChannel) -> Result<bool> {
+        let object_id = ObjectId::parse_str(id)?;
+        channel.updated_at = Utc::now();
+        let doc = bson::to_document(&channel)?;
+        let result = self
+            .channels_collection
+            .replace_one(doc! { "_id": object_id }, doc)
+            .await?;
+        Ok(result.modified_count > 0)
+    }
+
+    /// Delete notification channel
+    pub async fn delete_channel(&self, id: &str) -> Result<bool> {
+        let object_id = ObjectId::parse_str(id)?;
+        let result = self
+            .channels_collection
+            .delete_one(doc! { "_id": object_id })
+            .await?;
+        Ok(result.deleted_count > 0)
+    }
+
+    /// Test a notification channel
+    pub async fn test_channel(&self, id: &str, message: Option<String>) -> Result<()> {
+        let channel = self.get_channel(id).await?
+            .ok_or_else(|| anyhow::anyhow!("Channel not found"))?;
+        self.notification_sender.send_test(&channel, message).await
+    }
+
+    /// Get channels by IDs
+    async fn get_channels_by_ids(&self, ids: &[String]) -> Result<Vec<NotificationChannel>> {
+        use futures::TryStreamExt;
+
+        let object_ids: Vec<ObjectId> = ids
+            .iter()
+            .filter_map(|id| ObjectId::parse_str(id).ok())
+            .collect();
+
+        if object_ids.is_empty() {
+            return Ok(vec![]);
+        }
+
+        let cursor = self.channels_collection.find(doc! { "_id": { "$in": object_ids } }).await?;
+        let docs: Vec<Document> = cursor.try_collect().await?;
+
+        let channels: Vec<NotificationChannel> = docs
+            .into_iter()
+            .filter_map(|doc| bson::from_document(doc).ok())
+            .collect();
+
+        Ok(channels)
+    }
+
+    // ===== Alert Methods =====
 
     /// Create a new alert rule
     pub async fn create_alert(&self, mut alert: AlertRule) -> Result<String> {
@@ -235,6 +334,17 @@ impl AlertManager {
                 // Execute action
                 if let Err(e) = self.execute_action(&alert.action, &notification).await {
                     error!("Failed to execute alert action: {}", e);
+                }
+
+                // Send to notification channels
+                if !alert.notification_channels.is_empty() {
+                    if let Ok(channels) = self.get_channels_by_ids(&alert.notification_channels).await {
+                        for channel in channels {
+                            if let Err(e) = self.notification_sender.send(&channel, &notification).await {
+                                error!("Failed to send notification to channel {}: {}", channel.name, e);
+                            }
+                        }
+                    }
                 }
 
                 // Update last trigger time

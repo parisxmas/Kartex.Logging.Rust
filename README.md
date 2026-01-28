@@ -15,9 +15,11 @@ A high-performance, multi-protocol logging and tracing server built in Rust. Sup
 - **Real-time Streaming** - WebSocket-based live log and trace updates
 - **Custom Dashboards** - Drag-and-drop widgets with persistent layouts
 - **Live Stream Widget** - Real-time log streaming with filters
-- **Alerting System** - Configurable alerts with webhook notifications
+- **Alerting System** - Configurable alerts with multiple notification channels
+- **Notification Channels** - Slack, Discord, PagerDuty, Email (SMTP), and Webhooks
 - **Metrics Dashboard** - Real-time metrics and statistics
 - **MongoDB Storage** - Efficient document storage with automatic indexing
+- **Batch Writing** - High-performance batched MongoDB writes for UDP protocols
 - **HTTPS API** - RESTful API for querying logs and traces
 - **Web Interface** - Modern dashboard with logs, traces, and alerts views
 - **Docker Ready** - Production-ready Docker and Docker Compose configuration
@@ -283,8 +285,26 @@ Query parameters for `/api/traces`:
 |----------|-------------|
 | `GET /api/alerts` | List alert rules |
 | `POST /api/alerts` | Create alert rule |
+| `PUT /api/alerts/{id}` | Update alert rule |
 | `DELETE /api/alerts/{id}` | Delete alert rule |
-| `GET /api/alerts/history` | Get triggered alerts history |
+
+### Notification Channels
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/channels` | List notification channels |
+| `GET /api/channels/{id}` | Get channel by ID |
+| `POST /api/channels` | Create notification channel |
+| `PUT /api/channels/{id}` | Update notification channel |
+| `DELETE /api/channels/{id}` | Delete notification channel |
+| `POST /api/channels/{id}/test` | Send test notification |
+
+Supported channel types:
+- **Slack** - Webhook with custom username, channel, and emoji
+- **Discord** - Webhook with custom username and avatar
+- **PagerDuty** - Events API v2 with routing key
+- **Email** - SMTP with TLS support
+- **Webhook** - Generic HTTP webhook with custom headers
 
 ### Real-time
 
@@ -351,6 +371,12 @@ tcp_enabled = true
 udp_port = 514
 tcp_port = 1514
 max_message_size = 65535
+
+[batch]
+enabled = true
+max_batch_size = 100       # Flush after 100 logs
+flush_interval_ms = 100    # Or flush every 100ms
+channel_buffer_size = 10000
 
 [tls]
 cert_path = "certs/cert.pem"
@@ -537,6 +563,7 @@ The web interface at http://localhost:8443 provides a fully **mobile-responsive*
   - Real-time client-side filtering
 - **Traces View** - Waterfall visualization of distributed traces
 - **Alerts View** - Configure and monitor alert rules
+- **Channels View** - Manage notification channels (Slack, Discord, PagerDuty, Email, Webhook)
 - **Log Detail Modal** - Full log details with trace correlation
 - **Trace Detail Modal** - Span timeline with attributes and correlated logs
 - **Mobile Support** - Responsive layouts with hamburger menu and card views
@@ -592,6 +619,33 @@ Dashboard widgets support custom JavaScript plugins. Place plugin files in `stat
 - `static/plugins/example-error-counter.js` - Simple error counter
 - `static/plugins/example-service-map.js` - Service dependency visualization
 - `static/plugins/example-leaflet-map.js` - Geo map with Leaflet.js
+
+## Performance
+
+### Batch Writing
+
+UDP-based protocols (Custom UDP, GELF, Syslog) use a log batcher for efficient MongoDB writes:
+
+- Logs are collected in an in-memory buffer
+- Flushed to MongoDB using `insert_many` when:
+  - Batch reaches `max_batch_size` (default: 100 logs)
+  - Timer reaches `flush_interval_ms` (default: 100ms)
+- Non-blocking: UDP receive loop is never blocked by database writes
+
+This reduces MongoDB operations from N writes to ~N/100 writes, significantly improving throughput.
+
+```
+# Without batching: 1000 logs/sec = 1000 MongoDB insert_one operations
+# With batching:    1000 logs/sec = ~10 MongoDB insert_many operations
+```
+
+Configure batching in `config.toml`:
+```toml
+[batch]
+max_batch_size = 100       # Logs per batch
+flush_interval_ms = 100    # Max wait time before flush
+channel_buffer_size = 10000 # Buffer size for incoming logs
+```
 
 ## Development
 

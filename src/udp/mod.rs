@@ -5,7 +5,7 @@ use std::sync::Arc;
 use tokio::net::UdpSocket;
 use tracing::{error, info, warn};
 
-use crate::db::repository::LogRepository;
+use crate::db::LogBatcher;
 use crate::realtime::{MetricsTracker, WsBroadcaster};
 use auth::AuthValidator;
 use parser::parse_log_payload;
@@ -13,7 +13,7 @@ use parser::parse_log_payload;
 pub struct UdpServer {
     socket: UdpSocket,
     auth_validator: AuthValidator,
-    repository: Arc<LogRepository>,
+    batcher: LogBatcher,
     metrics: Arc<MetricsTracker>,
     broadcaster: Arc<WsBroadcaster>,
 }
@@ -22,7 +22,7 @@ impl UdpServer {
     pub async fn new(
         port: u16,
         auth_secret: &str,
-        repository: Arc<LogRepository>,
+        batcher: LogBatcher,
         metrics: Arc<MetricsTracker>,
         broadcaster: Arc<WsBroadcaster>,
     ) -> anyhow::Result<Self> {
@@ -33,7 +33,7 @@ impl UdpServer {
         Ok(Self {
             socket,
             auth_validator: AuthValidator::new(auth_secret),
-            repository,
+            batcher,
             metrics,
             broadcaster,
         })
@@ -46,7 +46,6 @@ impl UdpServer {
             match self.socket.recv_from(&mut buf).await {
                 Ok((len, addr)) => {
                     let packet = buf[..len].to_vec();
-                    let repo = self.repository.clone();
                     let source_ip = addr.ip().to_string();
 
                     // Validate authentication
@@ -55,24 +54,18 @@ impl UdpServer {
                             // Parse and store the log
                             match parse_log_payload(payload, source_ip.clone()) {
                                 Ok(log_entry) => {
-                                    let repo = repo.clone();
-                                    let metrics = self.metrics.clone();
-                                    let broadcaster = self.broadcaster.clone();
                                     let level = format!("{:?}", log_entry.level).to_uppercase();
-                                    let log_for_broadcast = log_entry.clone();
 
-                                    tokio::spawn(async move {
-                                        // Record metrics
-                                        metrics.record_log_by_level(&level).await;
+                                    // Record metrics
+                                    self.metrics.record_log_by_level(&level).await;
 
-                                        // Broadcast to WebSocket clients
-                                        broadcaster.broadcast_log(log_for_broadcast);
+                                    // Broadcast to WebSocket clients
+                                    self.broadcaster.broadcast_log(log_entry.clone());
 
-                                        // Store in database
-                                        if let Err(e) = repo.insert_log(log_entry).await {
-                                            error!("Failed to store log from {}: {}", source_ip, e);
-                                        }
-                                    });
+                                    // Add to batch queue (non-blocking)
+                                    if let Err(e) = self.batcher.try_add(log_entry) {
+                                        error!("Failed to queue log from {}: {}", source_ip, e);
+                                    }
                                 }
                                 Err(e) => {
                                     warn!("Failed to parse log from {}: {}", addr, e);

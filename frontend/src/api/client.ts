@@ -46,6 +46,7 @@ export interface AlertRule {
   enabled: boolean;
   condition: AlertCondition;
   action: AlertAction;
+  notification_channels?: string[];
   last_triggered?: string;
   trigger_count?: number;
 }

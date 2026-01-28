@@ -16,6 +16,8 @@ pub struct Config {
     #[serde(default)]
     pub syslog: SyslogConfig,
     #[serde(default)]
+    pub batch: BatchingConfig,
+    #[serde(default)]
     pub users: Vec<User>,
 }
 
@@ -187,6 +189,45 @@ impl Default for SyslogConfig {
             udp_port: default_syslog_udp_port(),
             tcp_port: default_syslog_tcp_port(),
             max_message_size: default_syslog_max_message_size(),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct BatchingConfig {
+    #[serde(default = "default_batch_enabled")]
+    pub enabled: bool,
+    #[serde(default = "default_max_batch_size")]
+    pub max_batch_size: usize,
+    #[serde(default = "default_flush_interval_ms")]
+    pub flush_interval_ms: u64,
+    #[serde(default = "default_channel_buffer_size")]
+    pub channel_buffer_size: usize,
+}
+
+fn default_batch_enabled() -> bool {
+    true
+}
+
+fn default_max_batch_size() -> usize {
+    100
+}
+
+fn default_flush_interval_ms() -> u64 {
+    100
+}
+
+fn default_channel_buffer_size() -> usize {
+    10000
+}
+
+impl Default for BatchingConfig {
+    fn default() -> Self {
+        Self {
+            enabled: default_batch_enabled(),
+            max_batch_size: default_max_batch_size(),
+            flush_interval_ms: default_flush_interval_ms(),
+            channel_buffer_size: default_channel_buffer_size(),
         }
     }
 }

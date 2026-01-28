@@ -11,6 +11,7 @@ const navItems = [
   { path: '/live', label: 'Live Stream', icon: '📡' },
   { path: '/stats', label: 'Statistics', icon: '📊' },
   { path: '/alerts', label: 'Alerts', icon: '🔔' },
+  { path: '/channels', label: 'Channels', icon: '📢' },
   { path: '/settings', label: 'Settings', icon: '⚙️' },
 ];
 

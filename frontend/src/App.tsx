@@ -9,6 +9,7 @@ import Traces from './pages/Traces';
 import LiveStream from './pages/LiveStream';
 import Statistics from './pages/Statistics';
 import Alerts from './pages/Alerts';
+import Channels from './pages/Channels';
 import Settings from './pages/Settings';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -53,6 +54,7 @@ export default function App() {
         <Route path="live" element={<LiveStream />} />
         <Route path="stats" element={<Statistics />} />
         <Route path="alerts" element={<Alerts />} />
+        <Route path="channels" element={<Channels />} />
         <Route path="settings" element={<Settings />} />
       </Route>
     </Routes>

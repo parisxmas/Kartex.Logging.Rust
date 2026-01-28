@@ -2,6 +2,7 @@ mod api;
 mod config;
 mod db;
 mod gelf;
+mod notifications;
 mod otlp;
 mod realtime;
 mod syslog;
@@ -13,7 +14,7 @@ use tracing::{error, info};
 use tracing_subscriber::EnvFilter;
 
 use config::Config;
-use db::{DbClient, repository::LogRepository, DashboardRepository};
+use db::{BatchConfig, DbClient, DashboardRepository, LogBatcher, repository::LogRepository};
 use otlp::SpanRepository;
 use realtime::{AlertManager, MetricsTracker, WsBroadcaster};
 use udp::UdpServer;
@@ -48,25 +49,38 @@ async fn main() -> anyhow::Result<()> {
     ));
     let dashboard_repository = Arc::new(DashboardRepository::new(db_client.dashboards_collection));
 
+    // Create log batcher for efficient batch writes
+    let batch_config = BatchConfig {
+        max_batch_size: config.batch.max_batch_size,
+        flush_interval_ms: config.batch.flush_interval_ms,
+        channel_buffer_size: config.batch.channel_buffer_size,
+    };
+    let log_batcher = LogBatcher::new(repository.clone(), batch_config);
+    info!(
+        "Log batcher initialized (batch_size: {}, flush_interval: {}ms)",
+        config.batch.max_batch_size, config.batch.flush_interval_ms
+    );
+
     // Initialize realtime components
     let metrics = MetricsTracker::new();
     let broadcaster = WsBroadcaster::new(1000); // Buffer up to 1000 messages
     let alert_manager = AlertManager::new(
         db_client.alerts_collection,
+        db_client.notification_channels_collection,
         metrics.clone(),
         60, // 60 second cooldown between alerts
     );
     info!("Realtime components initialized");
 
     // Start UDP server
-    let udp_repo = repository.clone();
+    let udp_batcher = log_batcher.clone();
     let udp_port = config.server.udp_port;
     let auth_secret = config.server.auth_secret.clone();
     let udp_metrics = metrics.clone();
     let udp_broadcaster = broadcaster.clone();
 
     let udp_handle = tokio::spawn(async move {
-        let udp_server = UdpServer::new(udp_port, &auth_secret, udp_repo, udp_metrics, udp_broadcaster)
+        let udp_server = UdpServer::new(udp_port, &auth_secret, udp_batcher, udp_metrics, udp_broadcaster)
             .await
             .expect("Failed to create UDP server");
 
@@ -140,7 +154,7 @@ async fn main() -> anyhow::Result<()> {
 
     // Spawn GELF UDP server if enabled
     if config.gelf.enabled {
-        let gelf_repo = repository.clone();
+        let gelf_batcher = log_batcher.clone();
         let gelf_metrics = metrics.clone();
         let gelf_broadcaster = broadcaster.clone();
         let gelf_port = config.gelf.udp_port;
@@ -148,7 +162,7 @@ async fn main() -> anyhow::Result<()> {
         tokio::spawn(async move {
             if let Err(e) = gelf::server::start_gelf_server(
                 gelf_port,
-                gelf_repo,
+                gelf_batcher,
                 gelf_metrics,
                 gelf_broadcaster,
             )
@@ -165,7 +179,7 @@ async fn main() -> anyhow::Result<()> {
 
         // Syslog UDP server
         if syslog_config.udp_enabled {
-            let syslog_repo = repository.clone();
+            let syslog_batcher = log_batcher.clone();
             let syslog_metrics = metrics.clone();
             let syslog_broadcaster = broadcaster.clone();
             let syslog_udp_port = syslog_config.udp_port;
@@ -174,7 +188,7 @@ async fn main() -> anyhow::Result<()> {
             tokio::spawn(async move {
                 if let Err(e) = syslog::start_syslog_udp_server(
                     syslog_udp_port,
-                    syslog_repo,
+                    syslog_batcher,
                     syslog_metrics,
                     syslog_broadcaster,
                     max_msg_size,
@@ -188,7 +202,7 @@ async fn main() -> anyhow::Result<()> {
 
         // Syslog TCP server
         if syslog_config.tcp_enabled {
-            let syslog_repo = repository.clone();
+            let syslog_batcher = log_batcher.clone();
             let syslog_metrics = metrics.clone();
             let syslog_broadcaster = broadcaster.clone();
             let syslog_tcp_port = syslog_config.tcp_port;
@@ -197,7 +211,7 @@ async fn main() -> anyhow::Result<()> {
             tokio::spawn(async move {
                 if let Err(e) = syslog::start_syslog_tcp_server(
                     syslog_tcp_port,
-                    syslog_repo,
+                    syslog_batcher,
                     syslog_metrics,
                     syslog_broadcaster,
                     max_msg_size,

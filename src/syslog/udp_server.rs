@@ -3,13 +3,13 @@ use tokio::net::UdpSocket;
 use tracing::{error, info, warn};
 
 use super::parser::parse_syslog_message;
-use crate::db::repository::LogRepository;
+use crate::db::LogBatcher;
 use crate::realtime::{MetricsTracker, WsBroadcaster};
 
 /// Syslog UDP Server (RFC 3164/5424)
 pub struct SyslogUdpServer {
     socket: UdpSocket,
-    repository: Arc<LogRepository>,
+    batcher: LogBatcher,
     metrics: Arc<MetricsTracker>,
     broadcaster: Arc<WsBroadcaster>,
     max_message_size: usize,
@@ -18,7 +18,7 @@ pub struct SyslogUdpServer {
 impl SyslogUdpServer {
     pub async fn new(
         port: u16,
-        repository: Arc<LogRepository>,
+        batcher: LogBatcher,
         metrics: Arc<MetricsTracker>,
         broadcaster: Arc<WsBroadcaster>,
         max_message_size: usize,
@@ -29,7 +29,7 @@ impl SyslogUdpServer {
 
         Ok(Self {
             socket,
-            repository,
+            batcher,
             metrics,
             broadcaster,
             max_message_size,
@@ -44,31 +44,26 @@ impl SyslogUdpServer {
                 Ok((len, addr)) => {
                     let packet = buf[..len].to_vec();
                     let source_ip = addr.ip().to_string();
-                    let repo = self.repository.clone();
-                    let metrics = self.metrics.clone();
-                    let broadcaster = self.broadcaster.clone();
 
-                    tokio::spawn(async move {
-                        match parse_syslog_message(&packet, source_ip.clone()) {
-                            Ok(log_entry) => {
-                                let level = format!("{:?}", log_entry.level).to_uppercase();
+                    match parse_syslog_message(&packet, source_ip.clone()) {
+                        Ok(log_entry) => {
+                            let level = format!("{:?}", log_entry.level).to_uppercase();
 
-                                // Record metrics
-                                metrics.record_log_by_level(&level).await;
+                            // Record metrics
+                            self.metrics.record_log_by_level(&level).await;
 
-                                // Broadcast to WebSocket clients
-                                broadcaster.broadcast_log(log_entry.clone());
+                            // Broadcast to WebSocket clients
+                            self.broadcaster.broadcast_log(log_entry.clone());
 
-                                // Store in database
-                                if let Err(e) = repo.insert_log(log_entry).await {
-                                    error!("Failed to store syslog from {}: {}", source_ip, e);
-                                }
-                            }
-                            Err(e) => {
-                                warn!("Failed to parse syslog message from {}: {}", addr, e);
+                            // Add to batch queue (non-blocking)
+                            if let Err(e) = self.batcher.try_add(log_entry) {
+                                error!("Failed to queue syslog from {}: {}", source_ip, e);
                             }
                         }
-                    });
+                        Err(e) => {
+                            warn!("Failed to parse syslog message from {}: {}", addr, e);
+                        }
+                    }
                 }
                 Err(e) => {
                     error!("Error receiving syslog UDP packet: {}", e);
@@ -81,12 +76,12 @@ impl SyslogUdpServer {
 /// Start the Syslog UDP server
 pub async fn start_syslog_udp_server(
     port: u16,
-    repository: Arc<LogRepository>,
+    batcher: LogBatcher,
     metrics: Arc<MetricsTracker>,
     broadcaster: Arc<WsBroadcaster>,
     max_message_size: usize,
 ) -> anyhow::Result<()> {
     let server =
-        SyslogUdpServer::new(port, repository, metrics, broadcaster, max_message_size).await?;
+        SyslogUdpServer::new(port, batcher, metrics, broadcaster, max_message_size).await?;
     server.run().await
 }

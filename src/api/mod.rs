@@ -23,6 +23,7 @@ use handlers::{
     get_traces, get_trace_by_id, get_trace_for_log,
     get_dashboards, get_dashboard, get_default_dashboard, create_dashboard,
     update_dashboard, delete_dashboard, get_widget_data,
+    get_channels, get_channel, create_channel, update_channel, delete_channel, test_channel,
 };
 
 /// Shared application state
@@ -83,6 +84,11 @@ pub fn create_router(
         .route("/dashboards/:id/delete", post(delete_dashboard))
         .route("/dashboards/:id", get(get_dashboard))
         .route("/widgets/data", post(get_widget_data))
+        .route("/channels", get(get_channels).post(create_channel))
+        .route("/channels/:id", get(get_channel))
+        .route("/channels/:id/update", post(update_channel))
+        .route("/channels/:id/delete", post(delete_channel))
+        .route("/channels/:id/test", post(test_channel))
         .layer(middleware::from_fn(auth_middleware))
         .layer(Extension(api_auth.clone()));
 

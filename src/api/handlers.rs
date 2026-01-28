@@ -24,6 +24,7 @@ use crate::db::dashboard::{
 };
 use crate::otlp::{TraceDetail, TraceQueryParams, TraceSummary};
 use crate::realtime::{AlertRule, RealtimeMetrics, WsMessage};
+use crate::notifications::{NotificationChannel, ChannelType, ChannelConfig};
 
 #[derive(Debug, Deserialize)]
 pub struct LogQueryParams {
@@ -916,5 +917,191 @@ async fn fetch_widget_data(
         }
 
         _ => Err(anyhow::anyhow!("Widget type and config mismatch")),
+    }
+}
+
+// ===== Notification Channel Handlers =====
+
+#[derive(Debug, Serialize)]
+pub struct ChannelsResponse {
+    pub channels: Vec<NotificationChannel>,
+    pub count: usize,
+}
+
+#[derive(Debug, Serialize)]
+pub struct CreateChannelResponse {
+    pub id: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CreateChannelRequest {
+    pub name: String,
+    pub channel_type: ChannelType,
+    pub config: ChannelConfig,
+    #[serde(default = "default_enabled")]
+    pub enabled: bool,
+}
+
+fn default_enabled() -> bool {
+    true
+}
+
+#[derive(Debug, Deserialize)]
+pub struct UpdateChannelRequest {
+    pub name: Option<String>,
+    pub config: Option<ChannelConfig>,
+    pub enabled: Option<bool>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct TestChannelRequest {
+    pub message: Option<String>,
+}
+
+pub async fn get_channels(
+    State(state): State<AppState>,
+) -> Result<Json<ChannelsResponse>, (StatusCode, Json<ErrorResponse>)> {
+    match state.alert_manager.get_channels().await {
+        Ok(channels) => {
+            let count = channels.len();
+            Ok(Json(ChannelsResponse { channels, count }))
+        }
+        Err(e) => Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                error: e.to_string(),
+            }),
+        )),
+    }
+}
+
+pub async fn get_channel(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> Result<Json<NotificationChannel>, (StatusCode, Json<ErrorResponse>)> {
+    match state.alert_manager.get_channel(&id).await {
+        Ok(Some(channel)) => Ok(Json(channel)),
+        Ok(None) => Err((
+            StatusCode::NOT_FOUND,
+            Json(ErrorResponse {
+                error: "Channel not found".to_string(),
+            }),
+        )),
+        Err(e) => Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                error: e.to_string(),
+            }),
+        )),
+    }
+}
+
+pub async fn create_channel(
+    State(state): State<AppState>,
+    Json(req): Json<CreateChannelRequest>,
+) -> Result<(StatusCode, Json<CreateChannelResponse>), (StatusCode, Json<ErrorResponse>)> {
+    let mut channel = NotificationChannel::new(req.name, req.channel_type, req.config);
+    channel.enabled = req.enabled;
+
+    match state.alert_manager.create_channel(channel).await {
+        Ok(id) => Ok((StatusCode::CREATED, Json(CreateChannelResponse { id }))),
+        Err(e) => Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                error: e.to_string(),
+            }),
+        )),
+    }
+}
+
+pub async fn update_channel(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    Json(req): Json<UpdateChannelRequest>,
+) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
+    // Get existing channel first
+    let existing = match state.alert_manager.get_channel(&id).await {
+        Ok(Some(channel)) => channel,
+        Ok(None) => {
+            return Err((
+                StatusCode::NOT_FOUND,
+                Json(ErrorResponse {
+                    error: "Channel not found".to_string(),
+                }),
+            ))
+        }
+        Err(e) => {
+            return Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse {
+                    error: e.to_string(),
+                }),
+            ))
+        }
+    };
+
+    // Update fields
+    let mut updated = existing;
+    if let Some(name) = req.name {
+        updated.name = name;
+    }
+    if let Some(config) = req.config {
+        updated.config = config;
+    }
+    if let Some(enabled) = req.enabled {
+        updated.enabled = enabled;
+    }
+
+    match state.alert_manager.update_channel(&id, updated).await {
+        Ok(true) => Ok(StatusCode::OK),
+        Ok(false) => Err((
+            StatusCode::NOT_FOUND,
+            Json(ErrorResponse {
+                error: "Channel not found".to_string(),
+            }),
+        )),
+        Err(e) => Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                error: e.to_string(),
+            }),
+        )),
+    }
+}
+
+pub async fn delete_channel(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
+    match state.alert_manager.delete_channel(&id).await {
+        Ok(true) => Ok(StatusCode::NO_CONTENT),
+        Ok(false) => Err((
+            StatusCode::NOT_FOUND,
+            Json(ErrorResponse {
+                error: "Channel not found".to_string(),
+            }),
+        )),
+        Err(e) => Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                error: e.to_string(),
+            }),
+        )),
+    }
+}
+
+pub async fn test_channel(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    Json(req): Json<TestChannelRequest>,
+) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
+    match state.alert_manager.test_channel(&id, req.message).await {
+        Ok(()) => Ok(StatusCode::OK),
+        Err(e) => Err((
+            StatusCode::BAD_REQUEST,
+            Json(ErrorResponse {
+                error: format!("Failed to send test notification: {}", e),
+            }),
+        )),
     }
 }

@@ -1,5 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AlertRule, AlertCondition, AlertAction } from '../api/client';
+
+interface NotificationChannel {
+  _id: { $oid: string } | string;
+  name: string;
+  channel_type: string;
+  enabled: boolean;
+}
 
 interface AlertFormProps {
   alert: AlertRule | null;
@@ -42,6 +49,50 @@ export default function AlertForm({ alert, onSave, onCancel }: AlertFormProps) {
   const [error, setError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
+  // Notification channels
+  const [channels, setChannels] = useState<NotificationChannel[]>([]);
+  const [selectedChannels, setSelectedChannels] = useState<string[]>(alert?.notification_channels || []);
+
+  useEffect(() => {
+    const fetchChannels = async () => {
+      try {
+        const response = await fetch('/api/channels', {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setChannels(data.channels.filter((c: NotificationChannel) => c.enabled));
+        }
+      } catch (err) {
+        console.error('Failed to fetch channels:', err);
+      }
+    };
+    fetchChannels();
+  }, []);
+
+  const getChannelId = (channel: NotificationChannel): string => {
+    return typeof channel._id === 'object' ? channel._id.$oid : channel._id;
+  };
+
+  const toggleChannel = (channelId: string) => {
+    setSelectedChannels(prev =>
+      prev.includes(channelId)
+        ? prev.filter(id => id !== channelId)
+        : [...prev, channelId]
+    );
+  };
+
+  const getChannelIcon = (type: string) => {
+    switch (type) {
+      case 'slack': return '💬';
+      case 'discord': return '🎮';
+      case 'pagerduty': return '📟';
+      case 'email': return '📧';
+      case 'webhook': return '🔗';
+      default: return '📢';
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -78,6 +129,7 @@ export default function AlertForm({ alert, onSave, onCancel }: AlertFormProps) {
         type: actionType as AlertRule['action']['type'],
         ...(actionType === 'webhook' ? { url: webhookUrl.trim() } : {}),
       },
+      notification_channels: selectedChannels,
     };
 
     setIsSaving(true);
@@ -183,6 +235,42 @@ export default function AlertForm({ alert, onSave, onCancel }: AlertFormProps) {
                 className="w-full px-3 py-2 bg-bg-tertiary border border-border rounded focus:outline-none focus:border-accent"
                 placeholder="https://hooks.example.com/alert"
               />
+            </div>
+          )}
+
+          {/* Notification Channels */}
+          {channels.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Notification Channels
+                <span className="text-text-secondary font-normal ml-1">(optional)</span>
+              </label>
+              <div className="space-y-2 max-h-40 overflow-y-auto p-2 bg-bg-tertiary rounded border border-border">
+                {channels.map((channel) => {
+                  const id = getChannelId(channel);
+                  return (
+                    <label
+                      key={id}
+                      className="flex items-center gap-2 cursor-pointer hover:bg-bg-secondary p-1 rounded"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedChannels.includes(id)}
+                        onChange={() => toggleChannel(id)}
+                        className="rounded"
+                      />
+                      <span>{getChannelIcon(channel.channel_type)}</span>
+                      <span className="flex-1">{channel.name}</span>
+                      <span className="text-xs text-text-secondary capitalize">
+                        {channel.channel_type}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-text-secondary mt-1">
+                Select channels to receive notifications when this alert triggers
+              </p>
             </div>
           )}
 
