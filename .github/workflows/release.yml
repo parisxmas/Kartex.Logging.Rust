@@ -1,0 +1,147 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            archive: tar.gz
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+            archive: tar.gz
+            cross: true
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            archive: tar.gz
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            archive: tar.gz
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            archive: zip
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build Frontend
+        run: |
+          cd frontend
+          npm ci
+          npm run build
+
+      - name: Install Rust Nightly
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install cross-compilation tools
+        if: matrix.cross
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+
+      - name: Build Binary
+        shell: bash
+        run: |
+          if [ "${{ matrix.cross }}" = "true" ]; then
+            export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc
+          fi
+          cargo build --release --target ${{ matrix.target }}
+
+      - name: Prepare Release Package (Unix)
+        if: matrix.os != 'windows-latest'
+        shell: bash
+        run: |
+          mkdir -p release/kartex-logging
+          cp target/${{ matrix.target }}/release/kartex-logging-rust release/kartex-logging/
+          cp config.toml release/kartex-logging/
+          cp -r static release/kartex-logging/
+          cp README.md release/kartex-logging/
+
+          # Create systemd service file for Linux
+          if [[ "${{ matrix.target }}" == *"linux"* ]]; then
+            cat > release/kartex-logging/kartex-logging.service << 'EOF'
+          [Unit]
+          Description=Kartex Logging Server
+          After=network.target
+
+          [Service]
+          Type=simple
+          User=kartex
+          WorkingDirectory=/opt/kartex-logging
+          ExecStart=/opt/kartex-logging/kartex-logging-rust
+          Restart=on-failure
+          RestartSec=5
+
+          [Install]
+          WantedBy=multi-user.target
+          EOF
+          fi
+
+          cd release
+          tar -czvf kartex-logging-${{ matrix.target }}.tar.gz kartex-logging
+
+      - name: Prepare Release Package (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path release/kartex-logging
+          Copy-Item target/${{ matrix.target }}/release/kartex-logging-rust.exe release/kartex-logging/
+          Copy-Item config.toml release/kartex-logging/
+          Copy-Item -Recurse static release/kartex-logging/
+          Copy-Item README.md release/kartex-logging/
+
+          cd release
+          Compress-Archive -Path kartex-logging -DestinationPath kartex-logging-${{ matrix.target }}.zip
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: kartex-logging-${{ matrix.target }}
+          path: release/kartex-logging-${{ matrix.target }}.${{ matrix.archive }}
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            artifacts/**/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
