@@ -252,7 +252,18 @@ class ApiClient {
       throw new Error(error.error || `HTTP ${response.status}`);
     }
 
-    return response.json();
+    // Handle empty responses (204 No Content or empty body)
+    const contentLength = response.headers.get('content-length');
+    if (response.status === 204 || contentLength === '0') {
+      return undefined as T;
+    }
+
+    const text = await response.text();
+    if (!text) {
+      return undefined as T;
+    }
+
+    return JSON.parse(text);
   }
 
   async login(username: string, password: string): Promise<LoginResponse> {
