@@ -1,11 +1,12 @@
 import { ReactNode } from 'react';
-import { Widget } from '../../api/client';
+import { Widget, WidgetConfigLiveStream } from '../../api/client';
 import LogCountWidget from './widgets/LogCountWidget';
 import ErrorRateWidget from './widgets/ErrorRateWidget';
 import RecentLogsWidget from './widgets/RecentLogsWidget';
 import TraceLatencyWidget from './widgets/TraceLatencyWidget';
 import ServiceHealthWidget from './widgets/ServiceHealthWidget';
 import CustomMetricWidget from './widgets/CustomMetricWidget';
+import LiveStreamWidget from './widgets/LiveStreamWidget';
 
 interface WidgetContainerProps {
   widget: Widget;
@@ -58,6 +59,8 @@ export default function WidgetContainer({
         return <ServiceHealthWidget data={data} config={widget.config} />;
       case 'custom_metric':
         return <CustomMetricWidget data={data} config={widget.config} />;
+      case 'live_stream':
+        return <LiveStreamWidget config={widget.config as WidgetConfigLiveStream} />;
       default:
         return <div className="text-text-secondary">Unknown widget type</div>;
     }

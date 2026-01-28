@@ -115,7 +115,8 @@ export type WidgetType =
   | 'recent_logs'
   | 'trace_latency_histogram'
   | 'service_health'
-  | 'custom_metric';
+  | 'custom_metric'
+  | 'live_stream';
 
 export type CustomMetricType =
   | 'logs_per_second'
@@ -163,13 +164,22 @@ export interface WidgetConfigCustomMetric {
   metric_type: CustomMetricType;
 }
 
+export interface WidgetConfigLiveStream {
+  type: 'live_stream';
+  max_logs: number;
+  level?: string;
+  service?: string;
+  auto_scroll: boolean;
+}
+
 export type WidgetConfig =
   | WidgetConfigLogCount
   | WidgetConfigErrorRateChart
   | WidgetConfigRecentLogs
   | WidgetConfigTraceLatencyHistogram
   | WidgetConfigServiceHealth
-  | WidgetConfigCustomMetric;
+  | WidgetConfigCustomMetric
+  | WidgetConfigLiveStream;
 
 export interface Widget {
   id: string;

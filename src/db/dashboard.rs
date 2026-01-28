@@ -74,6 +74,7 @@ pub enum WidgetType {
     TraceLatencyHistogram,
     ServiceHealth,
     CustomMetric,
+    LiveStream,
 }
 
 /// Configuration options for widgets
@@ -129,6 +130,20 @@ pub enum WidgetConfig {
         /// Metric type to display
         metric_type: CustomMetricType,
     },
+    LiveStream {
+        /// Maximum number of logs to display
+        #[serde(default = "default_stream_limit")]
+        max_logs: u32,
+        /// Filter by log level
+        #[serde(skip_serializing_if = "Option::is_none")]
+        level: Option<String>,
+        /// Filter by service
+        #[serde(skip_serializing_if = "Option::is_none")]
+        service: Option<String>,
+        /// Auto-scroll to new logs
+        #[serde(default = "default_auto_scroll")]
+        auto_scroll: bool,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -167,6 +182,14 @@ fn default_health_window() -> u32 {
 
 fn default_error_threshold() -> f64 {
     0.05 // 5%
+}
+
+fn default_stream_limit() -> u32 {
+    50
+}
+
+fn default_auto_scroll() -> bool {
+    true
 }
 
 /// A dashboard widget

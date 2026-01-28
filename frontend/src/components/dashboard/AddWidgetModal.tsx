@@ -72,6 +72,15 @@ const widgetTypes: WidgetTypeOption[] = [
     defaultWidth: 3,
     defaultHeight: 2,
   },
+  {
+    type: 'live_stream',
+    name: 'Live Stream',
+    description: 'Real-time log stream via WebSocket',
+    icon: '>',
+    defaultConfig: { type: 'live_stream', max_logs: 50, auto_scroll: true },
+    defaultWidth: 6,
+    defaultHeight: 5,
+  },
 ];
 
 export default function AddWidgetModal({ isOpen, onClose, onAdd }: AddWidgetModalProps) {

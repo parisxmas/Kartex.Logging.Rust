@@ -369,6 +369,7 @@ function getDefaultWidth(widgetType: string): number {
     case 'recent_logs':
     case 'trace_latency_histogram':
     case 'service_health':
+    case 'live_stream':
       return 6;
     default:
       return 4;
@@ -386,6 +387,8 @@ function getDefaultHeight(widgetType: string): number {
     case 'recent_logs':
     case 'trace_latency_histogram':
       return 4;
+    case 'live_stream':
+      return 5;
     default:
       return 3;
   }
