@@ -363,14 +363,14 @@ class ApiClient {
   }
 
   async updateDashboard(id: string, updates: UpdateDashboardRequest): Promise<void> {
-    await this.request<void>(`/dashboards/${id}`, {
-      method: 'PUT',
+    await this.request<void>(`/dashboards/${id}/update`, {
+      method: 'POST',
       body: JSON.stringify(updates),
     });
   }
 
   async deleteDashboard(id: string): Promise<void> {
-    await this.request<void>(`/dashboards/${id}`, { method: 'DELETE' });
+    await this.request<void>(`/dashboards/${id}/delete`, { method: 'POST' });
   }
 
   async getWidgetData(widgets: WidgetDataQuery[]): Promise<WidgetDataResponse> {

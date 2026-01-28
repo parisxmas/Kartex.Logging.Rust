@@ -3,7 +3,7 @@ pub mod handlers;
 
 use axum::{
     middleware,
-    routing::{delete, get, post, put},
+    routing::{get, post},
     Extension, Router,
 };
 use std::sync::Arc;
@@ -67,23 +67,21 @@ pub fn create_router(
     // API routes (protected)
     let api_routes = Router::new()
         .route("/logs", get(get_logs))
-        .route("/logs/{id}", get(get_log_by_id))
-        .route("/logs/{id}/trace", get(get_trace_for_log))
+        .route("/logs/:id", get(get_log_by_id))
+        .route("/logs/:id/trace", get(get_trace_for_log))
         .route("/traces", get(get_traces))
-        .route("/traces/{trace_id}", get(get_trace_by_id))
+        .route("/traces/:trace_id", get(get_trace_by_id))
         .route("/stats", get(get_stats))
         .route("/metrics", get(get_realtime_metrics))
         .route("/alerts", get(get_alerts).post(create_alert))
-        .route(
-            "/alerts/{id}",
-            get(get_alert).put(update_alert).delete(delete_alert),
-        )
+        .route("/alerts/:id/update", post(update_alert))
+        .route("/alerts/:id/delete", post(delete_alert))
+        .route("/alerts/:id", get(get_alert))
         .route("/dashboards", get(get_dashboards).post(create_dashboard))
         .route("/dashboards/default", get(get_default_dashboard))
-        .route(
-            "/dashboards/{id}",
-            get(get_dashboard).put(update_dashboard).delete(delete_dashboard),
-        )
+        .route("/dashboards/:id/update", post(update_dashboard))
+        .route("/dashboards/:id/delete", post(delete_dashboard))
+        .route("/dashboards/:id", get(get_dashboard))
         .route("/widgets/data", post(get_widget_data))
         .layer(middleware::from_fn(auth_middleware))
         .layer(Extension(api_auth.clone()));
