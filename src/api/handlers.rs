@@ -889,6 +889,14 @@ async fn fetch_widget_data(
             }))
         }
 
+        // LiveStream widget uses WebSocket directly, no backend data needed
+        (WidgetType::LiveStream, WidgetConfig::LiveStream { .. }) => {
+            Ok(serde_json::json!({
+                "status": "streaming",
+                "message": "Data streams via WebSocket"
+            }))
+        }
+
         _ => Err(anyhow::anyhow!("Widget type and config mismatch")),
     }
 }
