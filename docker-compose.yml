@@ -24,6 +24,7 @@ services:
       - "9514:9514/udp"
       - "4317:4317"    # OTLP gRPC
       - "4318:4318"    # OTLP HTTP
+      - "12201:12201/udp"  # GELF UDP
     volumes:
       - ./config.toml:/app/config.toml:ro
       - ./certs:/app/certs:ro

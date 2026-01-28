@@ -9,6 +9,8 @@ pub struct Config {
     pub tls: TlsConfig,
     pub logging: LoggingConfig,
     #[serde(default)]
+    pub gelf: GelfConfig,
+    #[serde(default)]
     pub otlp: OtlpConfig,
 }
 
@@ -37,6 +39,31 @@ pub struct TlsConfig {
 pub struct LoggingConfig {
     pub level: String,
     pub retention_days: u32,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct GelfConfig {
+    #[serde(default = "default_gelf_enabled")]
+    pub enabled: bool,
+    #[serde(default = "default_gelf_udp_port")]
+    pub udp_port: u16,
+}
+
+fn default_gelf_enabled() -> bool {
+    true
+}
+
+fn default_gelf_udp_port() -> u16 {
+    12201
+}
+
+impl Default for GelfConfig {
+    fn default() -> Self {
+        Self {
+            enabled: default_gelf_enabled(),
+            udp_port: default_gelf_udp_port(),
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, Clone)]

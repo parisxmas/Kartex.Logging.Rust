@@ -1,6 +1,7 @@
 mod api;
 mod config;
 mod db;
+mod gelf;
 mod otlp;
 mod realtime;
 mod udp;
@@ -133,6 +134,27 @@ async fn main() -> anyhow::Result<()> {
                 }
             });
         }
+    }
+
+    // Spawn GELF UDP server if enabled
+    if config.gelf.enabled {
+        let gelf_repo = repository.clone();
+        let gelf_metrics = metrics.clone();
+        let gelf_broadcaster = broadcaster.clone();
+        let gelf_port = config.gelf.udp_port;
+
+        tokio::spawn(async move {
+            if let Err(e) = gelf::server::start_gelf_server(
+                gelf_port,
+                gelf_repo,
+                gelf_metrics,
+                gelf_broadcaster,
+            )
+            .await
+            {
+                error!("GELF UDP server error: {}", e);
+            }
+        });
     }
 
     // Start HTTPS API server

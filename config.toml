@@ -17,6 +17,10 @@ key_path = "certs/key.pem"
 level = "info"
 retention_days = 30
 
+[gelf]
+enabled = true
+udp_port = 12201
+
 [otlp]
 enabled = true
 grpc_port = 4317
