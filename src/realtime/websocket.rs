@@ -73,6 +73,7 @@ impl WsBroadcaster {
 }
 
 /// WebSocket upgrade handler
+#[allow(dead_code)]
 pub async fn ws_handler(
     ws: WebSocketUpgrade,
     State(broadcaster): State<Arc<WsBroadcaster>>,
@@ -81,6 +82,7 @@ pub async fn ws_handler(
 }
 
 /// Handle an individual WebSocket connection
+#[allow(dead_code)]
 async fn handle_socket(socket: WebSocket, broadcaster: Arc<WsBroadcaster>) {
     let (mut sender, mut receiver) = socket.split();
 

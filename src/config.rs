@@ -3,6 +3,7 @@ use serde::Deserialize;
 use std::fs;
 
 #[derive(Debug, Deserialize, Clone)]
+#[allow(dead_code)]
 pub struct Config {
     pub server: ServerConfig,
     pub mongodb: MongoDbConfig,
@@ -44,12 +45,14 @@ pub struct MongoDbConfig {
 }
 
 #[derive(Debug, Deserialize, Clone)]
+#[allow(dead_code)]
 pub struct TlsConfig {
     pub cert_path: String,
     pub key_path: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]
+#[allow(dead_code)]
 pub struct LoggingConfig {
     pub level: String,
     pub retention_days: u32,

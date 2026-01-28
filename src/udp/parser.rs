@@ -57,6 +57,7 @@ fn parse_standard_payload(payload: &[u8], source_ip: String) -> Result<LogEntry,
 }
 
 /// Creates a sample log entry for testing
+#[allow(dead_code)]
 pub fn create_sample_log() -> LogEntry {
     let mut metadata = HashMap::new();
     metadata.insert("test".to_string(), serde_json::json!(true));

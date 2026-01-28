@@ -136,6 +136,7 @@ pub struct Span {
     pub created_at: DateTime<Utc>,
 }
 
+#[allow(dead_code)]
 impl Span {
     pub fn is_root(&self) -> bool {
         self.parent_span_id.is_none()

@@ -189,11 +189,13 @@ impl MetricsTracker {
     }
 
     /// Get total logs ever recorded
+    #[allow(dead_code)]
     pub fn total_logs(&self) -> u64 {
         self.total_logs.load(Ordering::Relaxed)
     }
 
     /// Get total errors ever recorded
+    #[allow(dead_code)]
     pub fn total_errors(&self) -> u64 {
         self.total_errors.load(Ordering::Relaxed)
     }

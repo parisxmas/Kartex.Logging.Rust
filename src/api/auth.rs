@@ -2,7 +2,7 @@ use axum::{
     extract::{Request, State},
     http::{header::AUTHORIZATION, StatusCode},
     middleware::Next,
-    response::{IntoResponse, Response},
+    response::Response,
     Json,
 };
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
@@ -135,6 +135,7 @@ pub struct ErrorResponse {
 #[derive(Debug, Clone)]
 pub struct AuthenticatedUser {
     pub username: String,
+    #[allow(dead_code)]
     pub role: String,
 }
 

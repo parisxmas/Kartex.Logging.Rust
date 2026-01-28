@@ -12,6 +12,8 @@ A high-performance, multi-protocol logging and tracing server built in Rust. Sup
 - **Distributed Tracing** - Full trace collection with span visualization
 - **Log-Trace Correlation** - Link logs to traces via trace_id
 - **Real-time Streaming** - WebSocket-based live log and trace updates
+- **Custom Dashboards** - Drag-and-drop widgets with persistent layouts
+- **Live Stream Widget** - Real-time log streaming with filters
 - **Alerting System** - Configurable alerts with webhook notifications
 - **Metrics Dashboard** - Real-time metrics and statistics
 - **MongoDB Storage** - Efficient document storage with automatic indexing
@@ -223,6 +225,17 @@ Query parameters for `/api/traces`:
 - `min_duration_ms` / `max_duration_ms` - Duration filters
 - `status` - Filter by status (OK, ERROR)
 - `limit` / `skip` - Pagination
+
+### Dashboards
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/dashboards` | List user's dashboards |
+| `GET /api/dashboards/{id}` | Get dashboard by ID |
+| `POST /api/dashboards` | Create new dashboard |
+| `POST /api/dashboards/{id}/update` | Update dashboard |
+| `POST /api/dashboards/{id}/delete` | Delete dashboard |
+| `POST /api/widgets/data` | Batch fetch widget data |
 
 ### Alerts
 
@@ -455,6 +468,14 @@ volumes:
 
 The web interface at http://localhost:8443 provides:
 
+- **Dashboard** - Customizable drag-and-drop widgets with persistent layouts
+  - Log Count - Total/filtered log counts
+  - Error Rate Chart - Errors over time (Recharts)
+  - Recent Logs - Scrollable list of latest logs
+  - Trace Latency Histogram - Distribution of trace durations
+  - Service Health - Status indicators per service
+  - Custom Metric - Single metric display
+  - Live Stream - Real-time log streaming with level/service filters
 - **Logs View** - Search, filter, and browse logs with real-time updates
 - **Traces View** - Waterfall visualization of distributed traces
 - **Alerts View** - Configure and monitor alert rules

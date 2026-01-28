@@ -1,6 +1,6 @@
 use bson::oid::ObjectId;
 use chrono::{DateTime, Utc};
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::collections::HashMap;
 
 /// Custom serialization module for DateTime that:
@@ -122,6 +122,7 @@ impl<'de> Deserialize<'de> for LogLevel {
     }
 }
 
+#[allow(dead_code)]
 impl LogEntry {
     pub fn new(
         level: LogLevel,

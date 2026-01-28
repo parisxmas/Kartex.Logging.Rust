@@ -75,7 +75,7 @@ async fn main() -> anyhow::Result<()> {
     });
 
     // Start background tasks for realtime features
-    let metrics_broadcaster_handle = {
+    let _metrics_broadcaster_handle = {
         let broadcaster = broadcaster.clone();
         let metrics = metrics.clone();
         tokio::spawn(async move {
@@ -83,7 +83,7 @@ async fn main() -> anyhow::Result<()> {
         })
     };
 
-    let alert_checker_handle = {
+    let _alert_checker_handle = {
         let alert_manager = alert_manager.clone();
         tokio::spawn(async move {
             realtime::alerts::alert_checker_task(alert_manager, 10).await;

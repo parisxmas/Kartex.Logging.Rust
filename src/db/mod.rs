@@ -7,8 +7,9 @@ pub mod dashboard;
 pub mod models;
 pub mod repository;
 
-pub use dashboard::{Dashboard, DashboardRepository, Widget, WidgetType, WidgetConfig, LayoutItem};
+pub use dashboard::DashboardRepository;
 
+#[allow(dead_code)]
 pub struct DbClient {
     pub database: Database,
     pub logs_collection: Collection<Document>,
@@ -17,6 +18,7 @@ pub struct DbClient {
     pub dashboards_collection: Collection<Document>,
 }
 
+#[allow(dead_code)]
 impl DbClient {
     pub async fn new(connection_string: &str, db_name: &str, collection_name: &str) -> Result<Self> {
         Self::with_spans_collection(connection_string, db_name, collection_name, "spans").await

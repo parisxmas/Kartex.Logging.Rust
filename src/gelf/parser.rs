@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Result};
-use chrono::{DateTime, TimeZone, Utc};
+use chrono::{TimeZone, Utc};
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::io::Read;
@@ -10,6 +10,7 @@ use crate::db::models::{LogEntry, LogLevel};
 const GELF_MAGIC: [u8; 2] = [0x1e, 0x0f];
 
 /// Maximum size of a single GELF message (8KB for UDP)
+#[allow(dead_code)]
 const MAX_CHUNK_SIZE: usize = 8192;
 
 /// GELF message structure

@@ -391,6 +391,7 @@ impl DashboardRepository {
     }
 
     /// Get a dashboard by ID
+    #[allow(dead_code)]
     pub async fn get_by_id(&self, id: &str) -> Result<Option<Dashboard>> {
         let object_id = ObjectId::parse_str(id)?;
         let doc = self.collection.find_one(doc! { "_id": object_id }).await?;

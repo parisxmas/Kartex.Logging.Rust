@@ -37,6 +37,7 @@ impl AuthValidator {
     }
 
     /// Generates HMAC signature for a payload (useful for clients)
+    #[allow(dead_code)]
     pub fn sign(&self, payload: &[u8]) -> Vec<u8> {
         let mut mac = HmacSha256::new_from_slice(&self.secret)
             .expect("HMAC can take key of any size");

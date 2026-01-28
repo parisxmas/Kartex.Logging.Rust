@@ -1,6 +1,5 @@
 use anyhow::Result;
 use bson::{doc, oid::ObjectId, Document};
-use chrono::{DateTime, Utc};
 use futures::TryStreamExt;
 use mongodb::Collection;
 
@@ -12,6 +11,7 @@ pub struct SpanRepository {
     pub logs_collection: Collection<Document>,
 }
 
+#[allow(dead_code)]
 impl SpanRepository {
     pub fn new(spans_collection: Collection<Document>, logs_collection: Collection<Document>) -> Self {
         Self {
