@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { ReactNode, useState } from 'react';
 import { Widget, WidgetConfigLiveStream, WidgetConfigPlugin } from '../../api/client';
 import LogCountWidget from './widgets/LogCountWidget';
 import ErrorRateWidget from './widgets/ErrorRateWidget';
@@ -8,6 +8,7 @@ import ServiceHealthWidget from './widgets/ServiceHealthWidget';
 import CustomMetricWidget from './widgets/CustomMetricWidget';
 import LiveStreamWidget from './widgets/LiveStreamWidget';
 import PluginWidget from './widgets/PluginWidget';
+import SavedFilterSelect, { FilterSelection } from './widgets/SavedFilterSelect';
 
 interface WidgetContainerProps {
   widget: Widget;
@@ -20,6 +21,9 @@ interface WidgetContainerProps {
   onRemove: () => void;
 }
 
+// Widget types that support saved filters
+const FILTERABLE_WIDGETS = ['recent_logs', 'live_stream'];
+
 export default function WidgetContainer({
   widget,
   data,
@@ -30,6 +34,9 @@ export default function WidgetContainer({
   onConfigure,
   onRemove,
 }: WidgetContainerProps) {
+  const [activeFilter, setActiveFilter] = useState<FilterSelection | null>(null);
+  const showFilterSelect = FILTERABLE_WIDGETS.includes(widget.widget_type);
+
   const renderWidget = (): ReactNode => {
     if (error) {
       return (
@@ -53,7 +60,7 @@ export default function WidgetContainer({
       case 'error_rate_chart':
         return <ErrorRateWidget data={data} config={widget.config} />;
       case 'recent_logs':
-        return <RecentLogsWidget data={data} config={widget.config} />;
+        return <RecentLogsWidget data={data} config={widget.config} filter={activeFilter} />;
       case 'trace_latency_histogram':
         return <TraceLatencyWidget data={data} config={widget.config} />;
       case 'service_health':
@@ -61,7 +68,7 @@ export default function WidgetContainer({
       case 'custom_metric':
         return <CustomMetricWidget data={data} config={widget.config} />;
       case 'live_stream':
-        return <LiveStreamWidget config={widget.config as WidgetConfigLiveStream} />;
+        return <LiveStreamWidget config={widget.config as WidgetConfigLiveStream} filter={activeFilter} />;
       case 'plugin':
         return <PluginWidget config={widget.config as WidgetConfigPlugin} />;
       default:
@@ -85,6 +92,9 @@ export default function WidgetContainer({
           )}
         </div>
         <div className="flex items-center gap-1">
+          {showFilterSelect && (
+            <SavedFilterSelect onFilterChange={setActiveFilter} compact />
+          )}
           <button
             onClick={onRefresh}
             className="p-1 text-text-secondary hover:text-text-primary transition-colors"

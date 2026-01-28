@@ -1,6 +1,6 @@
-import { useState, useMemo } from 'react';
+import { useMemo } from 'react';
 import { LogEntry, WidgetConfig } from '../../../api/client';
-import SavedFilterSelect, { FilterSelection } from './SavedFilterSelect';
+import { FilterSelection } from './SavedFilterSelect';
 
 interface RecentLogsData {
   logs: LogEntry[];
@@ -9,6 +9,7 @@ interface RecentLogsData {
 interface RecentLogsWidgetProps {
   data: unknown;
   config: WidgetConfig;
+  filter?: FilterSelection | null;
 }
 
 function formatTimestamp(timestamp: string): string {
@@ -40,44 +41,42 @@ function getLevelBadgeClass(level: string): string {
   }
 }
 
-export default function RecentLogsWidget({ data }: RecentLogsWidgetProps) {
-  const [activeFilter, setActiveFilter] = useState<FilterSelection | null>(null);
-
+export default function RecentLogsWidget({ data, filter }: RecentLogsWidgetProps) {
   const logsData = data as RecentLogsData | undefined;
   const allLogs = logsData?.logs ?? [];
 
   // Apply client-side filtering based on saved filter
   const filteredLogs = useMemo(() => {
-    if (!activeFilter) return allLogs;
+    if (!filter) return allLogs;
 
     return allLogs.filter((log) => {
-      if (activeFilter.level && log.level.toUpperCase() !== activeFilter.level.toUpperCase()) {
+      if (filter.level && log.level.toUpperCase() !== filter.level.toUpperCase()) {
         return false;
       }
-      if (activeFilter.service && log.service !== activeFilter.service) {
+      if (filter.service && log.service !== filter.service) {
         return false;
       }
-      if (activeFilter.search) {
-        const searchLower = activeFilter.search.toLowerCase();
+      if (filter.search) {
+        const searchLower = filter.search.toLowerCase();
         if (!log.message.toLowerCase().includes(searchLower)) {
           return false;
         }
       }
       return true;
     });
-  }, [allLogs, activeFilter]);
+  }, [allLogs, filter]);
+
+  // Show count when filter is active
+  const showCount = filter && (filter.level || filter.service || filter.search);
 
   return (
     <div className="h-full flex flex-col">
-      {/* Filter bar */}
-      <div className="flex items-center justify-between mb-2 shrink-0">
-        <SavedFilterSelect onFilterChange={setActiveFilter} compact />
-        {activeFilter && (
-          <span className="text-xs text-text-secondary">
-            {filteredLogs.length}/{allLogs.length}
-          </span>
-        )}
-      </div>
+      {/* Count indicator when filtered */}
+      {showCount && (
+        <div className="text-xs text-text-secondary mb-1 shrink-0">
+          Showing {filteredLogs.length} of {allLogs.length}
+        </div>
+      )}
 
       {/* Logs list */}
       {filteredLogs.length === 0 ? (

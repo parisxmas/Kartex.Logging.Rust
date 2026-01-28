@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { LogEntry, WidgetConfigLiveStream } from '../../../api/client';
-import SavedFilterSelect, { FilterSelection } from './SavedFilterSelect';
+import { FilterSelection } from './SavedFilterSelect';
 
 interface WsMessage {
   type: 'log' | 'span' | 'metrics' | 'connected' | 'error';
@@ -10,21 +10,21 @@ interface WsMessage {
 
 interface LiveStreamWidgetProps {
   config: WidgetConfigLiveStream;
+  filter?: FilterSelection | null;
 }
 
-export default function LiveStreamWidget({ config }: LiveStreamWidgetProps) {
+export default function LiveStreamWidget({ config, filter }: LiveStreamWidgetProps) {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [isPaused, setIsPaused] = useState(false);
   const [wsStatus, setWsStatus] = useState<'connected' | 'disconnected' | 'connecting'>('disconnected');
-  const [savedFilter, setSavedFilter] = useState<FilterSelection | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const maxLogs = config.max_logs || 50;
 
   // Combine config filters with saved filter (saved filter takes precedence)
-  const activeLevel = savedFilter?.level || config.level;
-  const activeService = savedFilter?.service || config.service;
-  const activeSearch = savedFilter?.search;
+  const activeLevel = filter?.level || config.level;
+  const activeService = filter?.service || config.service;
+  const activeSearch = filter?.search;
 
   useEffect(() => {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -89,7 +89,7 @@ export default function LiveStreamWidget({ config }: LiveStreamWidgetProps) {
   // Clear logs when filter changes
   useEffect(() => {
     setLogs([]);
-  }, [savedFilter]);
+  }, [filter]);
 
   const formatTime = (timestamp: string) => {
     return new Date(timestamp).toLocaleTimeString();
@@ -121,7 +121,9 @@ export default function LiveStreamWidget({ config }: LiveStreamWidgetProps) {
             wsStatus === 'connecting' ? 'bg-warning animate-pulse' :
             'bg-error'
           }`} />
-          <SavedFilterSelect onFilterChange={setSavedFilter} compact />
+          <span className="text-text-secondary">
+            {wsStatus === 'connected' ? 'Live' : wsStatus === 'connecting' ? 'Connecting...' : 'Disconnected'}
+          </span>
         </div>
         <div className="flex items-center gap-2">
           <span className="text-text-secondary">{logs.length}</span>
