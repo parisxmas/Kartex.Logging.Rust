@@ -38,6 +38,27 @@ var methods = new[] { "GET", "POST", "PUT", "DELETE" };
 var statusCodes = new[] { 200, 201, 204, 400, 401, 403, 404, 500 };
 var random = new Random();
 
+// Generate random public IPs for geo lookup testing
+string GetRandomIp()
+{
+    // Avoid private/reserved IP ranges: 10.x, 172.16-31.x, 192.168.x, 127.x, 0.x, 224+
+    int firstOctet;
+    do
+    {
+        firstOctet = random.Next(1, 224);
+    } while (firstOctet == 10 || firstOctet == 127 || firstOctet == 0);
+
+    int secondOctet = random.Next(0, 256);
+
+    // Skip 172.16.0.0 - 172.31.255.255 and 192.168.x.x
+    if (firstOctet == 172 && secondOctet >= 16 && secondOctet <= 31)
+        secondOctet = random.Next(32, 256);
+    if (firstOctet == 192 && secondOctet == 168)
+        secondOctet = random.Next(0, 168);
+
+    return $"{firstOctet}.{secondOctet}.{random.Next(0, 256)}.{random.Next(1, 255)}";
+}
+
 // Cancellation token for graceful shutdown
 using var cts = new CancellationTokenSource();
 Console.CancelKeyPress += (_, e) =>
@@ -56,36 +77,40 @@ try
         count++;
         var logType = random.Next(100);
 
-        // Generate different types of log messages based on weighted random selection
-        switch (logType)
+        // Add random global IP for map visualization
+        using (LogContext.PushProperty("ClientIp", GetRandomIp()))
         {
-            case < 5: // 5% - Verbose/Trace
-                GenerateVerboseLog(random);
-                break;
+            // Generate different types of log messages based on weighted random selection
+            switch (logType)
+            {
+                case < 5: // 5% - Verbose/Trace
+                    GenerateVerboseLog(random);
+                    break;
 
-            case < 20: // 15% - Debug
-                GenerateDebugLog(random, users, endpoints);
-                break;
+                case < 20: // 15% - Debug
+                    GenerateDebugLog(random, users, endpoints);
+                    break;
 
-            case < 70: // 50% - Information
-                GenerateInfoLog(random, users, endpoints, methods, statusCodes);
-                break;
+                case < 70: // 50% - Information
+                    GenerateInfoLog(random, users, endpoints, methods, statusCodes);
+                    break;
 
-            case < 90: // 20% - Warning
-                GenerateWarningLog(random, endpoints);
-                break;
+                case < 90: // 20% - Warning
+                    GenerateWarningLog(random, endpoints);
+                    break;
 
-            case < 98: // 8% - Error
-                GenerateErrorLog(random, users, endpoints);
-                break;
+                case < 98: // 8% - Error
+                    GenerateErrorLog(random, users, endpoints);
+                    break;
 
-            default: // 2% - Fatal
-                GenerateFatalLog(random);
-                break;
+                default: // 2% - Fatal
+                    GenerateFatalLog(random);
+                    break;
+            }
         }
 
         // Random delay between logs (10ms - 1000ms)
-        await Task.Delay(random.Next(5, 100), cts.Token);
+        await Task.Delay(random.Next(500, 1000), cts.Token);
     }
 }
 catch (OperationCanceledException)

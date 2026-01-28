@@ -116,7 +116,10 @@ export type WidgetType =
   | 'trace_latency_histogram'
   | 'service_health'
   | 'custom_metric'
-  | 'live_stream';
+  | 'live_stream'
+  | 'plugin';
+
+export type PluginType = 'javascript' | 'wasm';
 
 export type CustomMetricType =
   | 'logs_per_second'
@@ -172,6 +175,16 @@ export interface WidgetConfigLiveStream {
   auto_scroll: boolean;
 }
 
+export interface WidgetConfigPlugin {
+  type: 'plugin';
+  url: string;
+  plugin_type: PluginType;
+  plugin_config?: Record<string, unknown>;
+  realtime?: boolean;
+  level?: string;
+  service?: string;
+}
+
 export type WidgetConfig =
   | WidgetConfigLogCount
   | WidgetConfigErrorRateChart
@@ -179,7 +192,8 @@ export type WidgetConfig =
   | WidgetConfigTraceLatencyHistogram
   | WidgetConfigServiceHealth
   | WidgetConfigCustomMetric
-  | WidgetConfigLiveStream;
+  | WidgetConfigLiveStream
+  | WidgetConfigPlugin;
 
 export interface Widget {
   id: string;

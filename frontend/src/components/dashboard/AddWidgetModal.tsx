@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Widget, WidgetType, WidgetConfig } from '../../api/client';
+import { Widget, WidgetType, WidgetConfig, PluginType } from '../../api/client';
 
 interface AddWidgetModalProps {
   isOpen: boolean;
@@ -81,28 +81,62 @@ const widgetTypes: WidgetTypeOption[] = [
     defaultWidth: 6,
     defaultHeight: 5,
   },
+  {
+    type: 'plugin',
+    name: 'Plugin',
+    description: 'Load external JS/WASM plugin from URL',
+    icon: '{}',
+    defaultConfig: { type: 'plugin', url: '', plugin_type: 'javascript' as PluginType, realtime: false },
+    defaultWidth: 6,
+    defaultHeight: 4,
+  },
 ];
 
 export default function AddWidgetModal({ isOpen, onClose, onAdd }: AddWidgetModalProps) {
   const [selectedType, setSelectedType] = useState<WidgetTypeOption | null>(null);
   const [title, setTitle] = useState('');
+  const [pluginUrl, setPluginUrl] = useState('');
+  const [pluginType, setPluginType] = useState<PluginType>('javascript');
+  const [pluginRealtime, setPluginRealtime] = useState(false);
 
   if (!isOpen) return null;
 
   const handleAdd = () => {
     if (!selectedType) return;
 
+    // For plugin type, validate URL and create custom config
+    if (selectedType.type === 'plugin') {
+      if (!pluginUrl.trim()) {
+        return; // Don't add without URL
+      }
+    }
+
+    let config: WidgetConfig = selectedType.defaultConfig;
+
+    // Override config for plugin type
+    if (selectedType.type === 'plugin') {
+      config = {
+        type: 'plugin',
+        url: pluginUrl.trim(),
+        plugin_type: pluginType,
+        realtime: pluginRealtime,
+      };
+    }
+
     const widget: Widget = {
       id: `widget-${Date.now()}`,
       widget_type: selectedType.type,
       title: title || selectedType.name,
-      config: selectedType.defaultConfig,
-      refresh_interval: 30,
+      config,
+      refresh_interval: selectedType.type === 'plugin' ? 0 : 30, // Plugins manage their own refresh
     };
 
     onAdd(widget);
     setSelectedType(null);
     setTitle('');
+    setPluginUrl('');
+    setPluginType('javascript');
+    setPluginRealtime(false);
     onClose();
   };
 
@@ -122,7 +156,7 @@ export default function AddWidgetModal({ isOpen, onClose, onAdd }: AddWidgetModa
           </button>
         </div>
 
-        <div className="p-4">
+        <div className="p-4 max-h-[60vh] overflow-y-auto">
           {!selectedType ? (
             <div className="grid grid-cols-2 gap-3">
               {widgetTypes.map((wt) => (
@@ -162,6 +196,48 @@ export default function AddWidgetModal({ isOpen, onClose, onAdd }: AddWidgetModa
               <p className="text-sm text-text-secondary">
                 {selectedType.description}. You can configure additional options after adding.
               </p>
+
+              {/* Plugin-specific fields */}
+              {selectedType.type === 'plugin' && (
+                <div className="space-y-3 pt-2 border-t border-border">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Plugin URL *</label>
+                    <input
+                      type="url"
+                      value={pluginUrl}
+                      onChange={(e) => setPluginUrl(e.target.value)}
+                      placeholder="https://example.com/plugin.js"
+                      className="w-full px-3 py-2 bg-bg-tertiary border border-border rounded focus:outline-none focus:ring-1 focus:ring-accent font-mono text-sm"
+                    />
+                    <p className="text-xs text-text-tertiary mt-1">URL to the JavaScript or WASM plugin file</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Plugin Type</label>
+                    <select
+                      value={pluginType}
+                      onChange={(e) => setPluginType(e.target.value as PluginType)}
+                      className="w-full px-3 py-2 bg-bg-tertiary border border-border rounded focus:outline-none focus:ring-1 focus:ring-accent"
+                    >
+                      <option value="javascript">JavaScript</option>
+                      <option value="wasm">WebAssembly (WASM)</option>
+                    </select>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="plugin-realtime"
+                      checked={pluginRealtime}
+                      onChange={(e) => setPluginRealtime(e.target.checked)}
+                      className="w-4 h-4 rounded border-border bg-bg-tertiary text-accent focus:ring-accent"
+                    />
+                    <label htmlFor="plugin-realtime" className="text-sm">
+                      Enable real-time log streaming
+                    </label>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -184,7 +260,8 @@ export default function AddWidgetModal({ isOpen, onClose, onAdd }: AddWidgetModa
           {selectedType && (
             <button
               onClick={handleAdd}
-              className="px-4 py-2 bg-accent hover:bg-accent/80 text-white rounded transition-colors"
+              disabled={selectedType.type === 'plugin' && !pluginUrl.trim()}
+              className="px-4 py-2 bg-accent hover:bg-accent/80 text-white rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Add Widget
             </button>

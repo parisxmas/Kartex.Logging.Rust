@@ -1,1 +1,5 @@
 /target
+
+# Plugin with API key
+frontend/public/plugins/geo-map.js
+static/plugins/geo-map.js

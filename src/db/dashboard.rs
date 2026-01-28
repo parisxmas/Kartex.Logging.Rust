@@ -75,6 +75,15 @@ pub enum WidgetType {
     ServiceHealth,
     CustomMetric,
     LiveStream,
+    Plugin,
+}
+
+/// Plugin type (JS or WASM)
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum PluginType {
+    Javascript,
+    Wasm,
 }
 
 /// Configuration options for widgets
@@ -144,6 +153,25 @@ pub enum WidgetConfig {
         #[serde(default = "default_auto_scroll")]
         auto_scroll: bool,
     },
+    Plugin {
+        /// URL to load plugin from (JS or WASM file)
+        url: String,
+        /// Plugin type
+        #[serde(default = "default_plugin_type")]
+        plugin_type: PluginType,
+        /// Custom configuration passed to plugin
+        #[serde(default)]
+        plugin_config: serde_json::Value,
+        /// Whether to push real-time data to plugin
+        #[serde(default = "default_realtime")]
+        realtime: bool,
+        /// Data filter - log level
+        #[serde(skip_serializing_if = "Option::is_none")]
+        level: Option<String>,
+        /// Data filter - service
+        #[serde(skip_serializing_if = "Option::is_none")]
+        service: Option<String>,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -189,6 +217,14 @@ fn default_stream_limit() -> u32 {
 }
 
 fn default_auto_scroll() -> bool {
+    true
+}
+
+fn default_plugin_type() -> PluginType {
+    PluginType::Javascript
+}
+
+fn default_realtime() -> bool {
     true
 }
 

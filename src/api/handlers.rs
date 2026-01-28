@@ -904,6 +904,17 @@ async fn fetch_widget_data(
             }))
         }
 
+        // Plugin widget - frontend loads and executes the plugin
+        (WidgetType::Plugin, WidgetConfig::Plugin { url, plugin_type, plugin_config, .. }) => {
+            Ok(serde_json::json!({
+                "status": "plugin",
+                "url": url,
+                "plugin_type": plugin_type,
+                "plugin_config": plugin_config,
+                "message": "Plugin loaded by frontend"
+            }))
+        }
+
         _ => Err(anyhow::anyhow!("Widget type and config mismatch")),
     }
 }

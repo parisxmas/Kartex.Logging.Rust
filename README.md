@@ -476,11 +476,64 @@ The web interface at http://localhost:8443 provides:
   - Service Health - Status indicators per service
   - Custom Metric - Single metric display
   - Live Stream - Real-time log streaming with level/service filters
+  - Plugin Widget - Load custom JavaScript or WASM plugins
 - **Logs View** - Search, filter, and browse logs with real-time updates
 - **Traces View** - Waterfall visualization of distributed traces
 - **Alerts View** - Configure and monitor alert rules
 - **Log Detail Modal** - Full log details with trace correlation
 - **Trace Detail Modal** - Span timeline with attributes and correlated logs
+
+## Plugin Development
+
+Dashboard widgets support custom JavaScript plugins. Place plugin files in `static/plugins/` and load them via the Plugin Widget.
+
+### Plugin API
+
+```javascript
+(function() {
+  let api = null;
+
+  // Called when plugin loads
+  exports.init = async function(hostApi) {
+    api = hostApi;
+    api.log('Plugin initialized');
+    api.render('<div>My Plugin Content</div>');
+  };
+
+  // Called for each new log (if realtime enabled)
+  exports.onLog = function(log) {
+    // log.level, log.service, log.message, log.metadata, etc.
+  };
+
+  // Called periodically (every 10 seconds)
+  exports.onTick = async function() {
+    const logs = await api.getLogs({ limit: 10 });
+    const metrics = await api.getMetrics();
+  };
+
+  // Called when plugin is destroyed
+  exports.destroy = function() {
+    api.log('Plugin destroyed');
+  };
+})();
+```
+
+### Host API Methods
+
+| Method | Description |
+|--------|-------------|
+| `getLogs(params)` | Fetch logs with optional filters (level, service, limit) |
+| `getMetrics()` | Get realtime metrics (logs_per_second, error_rate, etc.) |
+| `getConfig()` | Get plugin configuration from widget settings |
+| `getTheme()` | Get current theme ('light' or 'dark') |
+| `render(html)` | Render HTML content in the widget |
+| `log(message)` | Log to browser console with plugin prefix |
+
+### Example Plugins
+
+- `static/plugins/example-error-counter.js` - Simple error counter
+- `static/plugins/example-service-map.js` - Service dependency visualization
+- `static/plugins/example-leaflet-map.js` - Geo map with Leaflet.js
 
 ## Development
 

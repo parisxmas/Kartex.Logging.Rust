@@ -54,18 +54,27 @@ export default function Dashboard() {
     fetchDefaultDashboard();
   }, [fetchDefaultDashboard]);
 
-  // Update container width on resize
+  // Update container width on resize using ResizeObserver
   useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
     const updateWidth = () => {
-      if (containerRef.current) {
-        setContainerWidth(containerRef.current.offsetWidth - 32); // Account for padding
-      }
+      setContainerWidth(container.offsetWidth - 32); // Account for padding
     };
 
-    updateWidth();
-    window.addEventListener('resize', updateWidth);
-    return () => window.removeEventListener('resize', updateWidth);
-  }, []);
+    // Use ResizeObserver to detect container size changes (not just window)
+    const resizeObserver = new ResizeObserver(() => {
+      updateWidth();
+    });
+
+    resizeObserver.observe(container);
+    updateWidth(); // Initial call
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [loading]); // Re-run when loading changes to ensure container is mounted
 
   // Save dashboard changes
   const saveDashboard = useCallback(async (updates: Partial<DashboardType>) => {
