@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { apiClient, RealtimeMetrics } from '../api/client';
@@ -14,11 +14,22 @@ const navItems = [
   { path: '/settings', label: 'Settings', icon: '⚙️' },
 ];
 
-export default function Sidebar() {
+interface SidebarProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const location = useLocation();
   const [metrics, setMetrics] = useState<RealtimeMetrics | null>(null);
   const [wsStatus, setWsStatus] = useState<'connected' | 'disconnected' | 'connecting'>('disconnected');
+
+  // Close sidebar on navigation (mobile)
+  useEffect(() => {
+    onClose();
+  }, [location.pathname]);
 
   useEffect(() => {
     const fetchMetrics = async () => {
@@ -61,11 +72,30 @@ export default function Sidebar() {
   }, []);
 
   return (
-    <aside className="w-64 bg-bg-secondary border-r border-border flex flex-col">
+    <aside
+      className={`
+        fixed inset-y-0 left-0 z-50 w-64 bg-bg-secondary border-r border-border flex flex-col
+        transform transition-transform duration-300 ease-in-out
+        md:relative md:translate-x-0
+        ${isOpen ? 'translate-x-0' : '-translate-x-full'}
+      `}
+    >
       {/* Logo */}
-      <div className="p-4 border-b border-border">
-        <h1 className="text-xl font-bold text-accent">Kartex Logging</h1>
-        <p className="text-xs text-text-secondary mt-1">Centralized Log Management</p>
+      <div className="p-4 border-b border-border flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold text-accent">Kartex Logging</h1>
+          <p className="text-xs text-text-secondary mt-1">Centralized Log Management</p>
+        </div>
+        {/* Close button for mobile */}
+        <button
+          onClick={onClose}
+          className="p-2 rounded-lg hover:bg-bg-tertiary transition-colors md:hidden"
+          aria-label="Close menu"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
       </div>
 
       {/* Quick Stats */}
@@ -128,13 +158,13 @@ export default function Sidebar() {
       {/* User Info */}
       <div className="p-4 border-t border-border">
         <div className="flex items-center justify-between">
-          <div>
-            <div className="font-medium">{user?.username}</div>
+          <div className="min-w-0 flex-1 mr-2">
+            <div className="font-medium truncate">{user?.username}</div>
             <div className="text-xs text-text-secondary capitalize">{user?.role}</div>
           </div>
           <button
             onClick={logout}
-            className="px-3 py-1 text-sm bg-bg-tertiary hover:bg-border rounded transition-colors"
+            className="px-3 py-1 text-sm bg-bg-tertiary hover:bg-border rounded transition-colors flex-shrink-0"
           >
             Logout
           </button>

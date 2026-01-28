@@ -46,6 +46,6 @@ COPY --from=builder /app/target/release/kartex-logging-rust .
 COPY --from=builder /app/static ./static
 COPY --from=builder /app/config.toml ./
 
-EXPOSE 8443 9514/udp 4317 4318 12201/udp
+EXPOSE 8443 9514/udp 4317 4318 12201/udp 514/udp 1514
 
 CMD ["./kartex-logging-rust"]

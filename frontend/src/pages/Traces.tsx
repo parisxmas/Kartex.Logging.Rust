@@ -84,29 +84,29 @@ export default function Traces() {
     <div className="h-full flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold">Traces</h1>
+        <h1 className="text-xl sm:text-2xl font-bold">Traces</h1>
         <button
           onClick={fetchTraces}
-          className="px-3 py-1.5 bg-bg-tertiary hover:bg-border rounded transition-colors"
+          className="px-3 py-1.5 bg-bg-tertiary hover:bg-border rounded transition-colors text-sm"
         >
           Refresh
         </button>
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3 mb-4 p-4 bg-bg-secondary rounded-lg border border-border">
+      <div className="flex flex-wrap gap-2 sm:gap-3 mb-4 p-3 sm:p-4 bg-bg-secondary rounded-lg border border-border">
         <input
           type="text"
           placeholder="Service..."
           value={service}
           onChange={(e) => setService(e.target.value)}
-          className="px-3 py-1.5 bg-bg-tertiary border border-border rounded focus:outline-none focus:border-accent"
+          className="flex-1 min-w-[120px] px-3 py-1.5 bg-bg-tertiary border border-border rounded focus:outline-none focus:border-accent text-sm"
         />
 
         <select
           value={status}
           onChange={(e) => setStatus(e.target.value)}
-          className="px-3 py-1.5 bg-bg-tertiary border border-border rounded focus:outline-none focus:border-accent"
+          className="px-3 py-1.5 bg-bg-tertiary border border-border rounded focus:outline-none focus:border-accent text-sm"
         >
           <option value="">All Status</option>
           <option value="ok">OK</option>
@@ -116,7 +116,7 @@ export default function Traces() {
         <select
           value={timeRange}
           onChange={(e) => setTimeRange(e.target.value)}
-          className="px-3 py-1.5 bg-bg-tertiary border border-border rounded focus:outline-none focus:border-accent"
+          className="px-3 py-1.5 bg-bg-tertiary border border-border rounded focus:outline-none focus:border-accent text-sm"
         >
           {TIME_RANGES.map((t) => (
             <option key={t.value} value={t.value}>
@@ -147,18 +147,18 @@ export default function Traces() {
               <div
                 key={trace.trace_id}
                 onClick={() => handleTraceClick(trace)}
-                className="p-4 hover:bg-bg-tertiary cursor-pointer transition-colors"
+                className="p-3 sm:p-4 hover:bg-bg-tertiary active:bg-bg-tertiary cursor-pointer transition-colors"
               >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="font-medium">{trace.root_span_name}</div>
-                    <div className="text-sm text-text-secondary font-mono">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="font-medium text-sm sm:text-base truncate">{trace.root_span_name}</div>
+                    <div className="text-xs sm:text-sm text-text-secondary font-mono">
                       {trace.trace_id.substring(0, 16)}...
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="font-mono">{formatDuration(trace.duration_ms)}</div>
-                    <div className="text-sm text-text-secondary">
+                  <div className="text-left sm:text-right flex sm:block items-center gap-3">
+                    <div className="font-mono text-sm">{formatDuration(trace.duration_ms)}</div>
+                    <div className="text-xs sm:text-sm text-text-secondary">
                       {trace.span_count} spans
                       {trace.error_count > 0 && (
                         <span className="ml-2 text-error">{trace.error_count} errors</span>
@@ -166,10 +166,10 @@ export default function Traces() {
                     </div>
                   </div>
                 </div>
-                <div className="mt-2 flex items-center gap-4 text-sm">
-                  <span className="text-text-secondary">Service: {trace.service}</span>
+                <div className="mt-2 flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm">
+                  <span className="text-text-secondary truncate max-w-[150px]">Service: {trace.service}</span>
                   <span className={`status-badge status-${trace.status}`}>{trace.status}</span>
-                  <span className="text-text-secondary">{formatTime(trace.start_time)}</span>
+                  <span className="text-text-secondary hidden sm:inline">{formatTime(trace.start_time)}</span>
                 </div>
               </div>
             ))}
@@ -179,18 +179,18 @@ export default function Traces() {
 
       {/* Trace Detail Modal */}
       {selectedTrace && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-bg-secondary rounded-lg border border-border w-full max-w-6xl max-h-[90vh] flex flex-col">
-            <div className="flex items-center justify-between p-4 border-b border-border">
-              <h2 className="text-lg font-bold">Trace Details</h2>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4">
+          <div className="bg-bg-secondary rounded-lg border border-border w-full max-w-6xl max-h-[95vh] sm:max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between p-3 sm:p-4 border-b border-border">
+              <h2 className="text-base sm:text-lg font-bold">Trace Details</h2>
               <button
                 onClick={() => setSelectedTrace(null)}
-                className="p-1 hover:bg-bg-tertiary rounded"
+                className="p-2 hover:bg-bg-tertiary rounded"
               >
                 ✕
               </button>
             </div>
-            <div className="flex-1 overflow-auto p-4">
+            <div className="flex-1 overflow-auto p-2 sm:p-4">
               {isLoadingTrace ? (
                 <div className="text-center text-text-secondary">Loading...</div>
               ) : (

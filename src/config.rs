@@ -14,6 +14,8 @@ pub struct Config {
     #[serde(default)]
     pub otlp: OtlpConfig,
     #[serde(default)]
+    pub syslog: SyslogConfig,
+    #[serde(default)]
     pub users: Vec<User>,
 }
 
@@ -132,6 +134,59 @@ impl Default for OtlpConfig {
             enable_grpc: default_enable_grpc(),
             enable_http: default_enable_http(),
             spans_collection: default_spans_collection(),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct SyslogConfig {
+    #[serde(default = "default_syslog_enabled")]
+    pub enabled: bool,
+    #[serde(default = "default_syslog_udp_enabled")]
+    pub udp_enabled: bool,
+    #[serde(default = "default_syslog_tcp_enabled")]
+    pub tcp_enabled: bool,
+    #[serde(default = "default_syslog_udp_port")]
+    pub udp_port: u16,
+    #[serde(default = "default_syslog_tcp_port")]
+    pub tcp_port: u16,
+    #[serde(default = "default_syslog_max_message_size")]
+    pub max_message_size: usize,
+}
+
+fn default_syslog_enabled() -> bool {
+    true
+}
+
+fn default_syslog_udp_enabled() -> bool {
+    true
+}
+
+fn default_syslog_tcp_enabled() -> bool {
+    true
+}
+
+fn default_syslog_udp_port() -> u16 {
+    514
+}
+
+fn default_syslog_tcp_port() -> u16 {
+    1514
+}
+
+fn default_syslog_max_message_size() -> usize {
+    65535
+}
+
+impl Default for SyslogConfig {
+    fn default() -> Self {
+        Self {
+            enabled: default_syslog_enabled(),
+            udp_enabled: default_syslog_udp_enabled(),
+            tcp_enabled: default_syslog_tcp_enabled(),
+            udp_port: default_syslog_udp_port(),
+            tcp_port: default_syslog_tcp_port(),
+            max_message_size: default_syslog_max_message_size(),
         }
     }
 }

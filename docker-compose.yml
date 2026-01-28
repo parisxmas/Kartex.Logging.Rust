@@ -25,6 +25,8 @@ services:
       - "4317:4317"    # OTLP gRPC
       - "4318:4318"    # OTLP HTTP
       - "12201:12201/udp"  # GELF UDP
+      - "514:514/udp"      # Syslog UDP
+      - "1514:1514"        # Syslog TCP
     volumes:
       - ./config.toml:/app/config.toml:ro
       - ./certs:/app/certs:ro

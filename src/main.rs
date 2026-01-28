@@ -4,6 +4,7 @@ mod db;
 mod gelf;
 mod otlp;
 mod realtime;
+mod syslog;
 mod udp;
 
 use std::sync::Arc;
@@ -156,6 +157,57 @@ async fn main() -> anyhow::Result<()> {
                 error!("GELF UDP server error: {}", e);
             }
         });
+    }
+
+    // Spawn Syslog servers if enabled
+    if config.syslog.enabled {
+        let syslog_config = config.syslog.clone();
+
+        // Syslog UDP server
+        if syslog_config.udp_enabled {
+            let syslog_repo = repository.clone();
+            let syslog_metrics = metrics.clone();
+            let syslog_broadcaster = broadcaster.clone();
+            let syslog_udp_port = syslog_config.udp_port;
+            let max_msg_size = syslog_config.max_message_size;
+
+            tokio::spawn(async move {
+                if let Err(e) = syslog::start_syslog_udp_server(
+                    syslog_udp_port,
+                    syslog_repo,
+                    syslog_metrics,
+                    syslog_broadcaster,
+                    max_msg_size,
+                )
+                .await
+                {
+                    error!("Syslog UDP server error: {}", e);
+                }
+            });
+        }
+
+        // Syslog TCP server
+        if syslog_config.tcp_enabled {
+            let syslog_repo = repository.clone();
+            let syslog_metrics = metrics.clone();
+            let syslog_broadcaster = broadcaster.clone();
+            let syslog_tcp_port = syslog_config.tcp_port;
+            let max_msg_size = syslog_config.max_message_size;
+
+            tokio::spawn(async move {
+                if let Err(e) = syslog::start_syslog_tcp_server(
+                    syslog_tcp_port,
+                    syslog_repo,
+                    syslog_metrics,
+                    syslog_broadcaster,
+                    max_msg_size,
+                )
+                .await
+                {
+                    error!("Syslog TCP server error: {}", e);
+                }
+            });
+        }
     }
 
     // Start HTTPS API server

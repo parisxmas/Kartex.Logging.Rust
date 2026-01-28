@@ -141,14 +141,14 @@ export default function Logs() {
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold">Logs</h1>
-        <div className="flex items-center gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+        <h1 className="text-xl sm:text-2xl font-bold">Logs</h1>
+        <div className="flex flex-wrap items-center gap-2">
           {/* View Mode Toggle */}
           <div className="flex bg-bg-secondary rounded-lg border border-border overflow-hidden">
             <button
               onClick={() => setViewMode('simple')}
-              className={`px-3 py-1.5 text-sm transition-colors ${
+              className={`px-2 sm:px-3 py-1.5 text-xs sm:text-sm transition-colors ${
                 viewMode === 'simple'
                   ? 'bg-accent text-white'
                   : 'text-text-secondary hover:text-text-primary'
@@ -158,43 +158,43 @@ export default function Logs() {
             </button>
             <button
               onClick={() => setViewMode('builder')}
-              className={`px-3 py-1.5 text-sm transition-colors ${
+              className={`px-2 sm:px-3 py-1.5 text-xs sm:text-sm transition-colors ${
                 viewMode === 'builder'
                   ? 'bg-accent text-white'
                   : 'text-text-secondary hover:text-text-primary'
               }`}
             >
-              Query Builder
+              Builder
             </button>
           </div>
 
           <button
             onClick={fetchLogs}
-            className="px-3 py-1.5 bg-bg-tertiary hover:bg-border rounded transition-colors"
+            className="px-2 sm:px-3 py-1.5 bg-bg-tertiary hover:bg-border rounded transition-colors text-sm"
           >
             Refresh
           </button>
           <button
             onClick={() => setAutoRefresh(!autoRefresh)}
-            className={`px-3 py-1.5 rounded transition-colors ${
+            className={`px-2 sm:px-3 py-1.5 rounded transition-colors text-xs sm:text-sm ${
               autoRefresh ? 'bg-accent text-white' : 'bg-bg-tertiary hover:bg-border'
             }`}
           >
-            {autoRefresh ? 'Stop Auto' : 'Auto Refresh'}
+            {autoRefresh ? 'Stop' : 'Auto'}
           </button>
         </div>
       </div>
 
       {/* Filters */}
       {viewMode === 'simple' ? (
-        <div className="flex flex-wrap gap-3 mb-4 p-4 bg-bg-secondary rounded-lg border border-border">
+        <div className="flex flex-wrap gap-2 sm:gap-3 mb-4 p-3 sm:p-4 bg-bg-secondary rounded-lg border border-border">
           <select
             value={level}
             onChange={(e) => {
               setLevel(e.target.value);
               handleFilterChange();
             }}
-            className="px-3 py-1.5 bg-bg-tertiary border border-border rounded focus:outline-none focus:border-accent"
+            className="px-2 sm:px-3 py-1.5 bg-bg-tertiary border border-border rounded focus:outline-none focus:border-accent text-sm"
           >
             <option value="">All Levels</option>
             {LEVELS.filter(Boolean).map((l) => (
@@ -212,21 +212,21 @@ export default function Logs() {
               setService(e.target.value);
               handleFilterChange();
             }}
-            className="px-3 py-1.5 bg-bg-tertiary border border-border rounded focus:outline-none focus:border-accent"
+            className="px-2 sm:px-3 py-1.5 bg-bg-tertiary border border-border rounded focus:outline-none focus:border-accent text-sm w-24 sm:w-auto"
           />
 
           {/* Search with Regex Toggle */}
-          <div className="flex-1 min-w-[200px] flex gap-1">
+          <div className="flex-1 min-w-[150px] sm:min-w-[200px] flex gap-1">
             <div className="relative flex-1">
               <input
                 type="text"
-                placeholder={regexMode ? 'Regex pattern...' : 'Search...'}
+                placeholder={regexMode ? 'Regex...' : 'Search...'}
                 value={search}
                 onChange={(e) => {
                   setSearch(e.target.value);
                   handleFilterChange();
                 }}
-                className={`w-full px-3 py-1.5 bg-bg-tertiary border rounded focus:outline-none focus:border-accent ${
+                className={`w-full px-2 sm:px-3 py-1.5 bg-bg-tertiary border rounded focus:outline-none focus:border-accent text-sm ${
                   regexMode ? 'border-accent font-mono' : 'border-border'
                 }`}
               />
@@ -240,7 +240,7 @@ export default function Logs() {
             {/* Regex Toggle */}
             <button
               onClick={() => setRegexMode(!regexMode)}
-              className={`px-3 py-1.5 rounded text-sm font-mono transition-colors ${
+              className={`px-2 sm:px-3 py-1.5 rounded text-sm font-mono transition-colors ${
                 regexMode
                   ? 'bg-accent text-white'
                   : 'bg-bg-tertiary border border-border text-text-secondary hover:text-text-primary'
@@ -258,7 +258,7 @@ export default function Logs() {
                   setRegexField(e.target.value);
                   handleFilterChange();
                 }}
-                className="px-3 py-1.5 bg-bg-tertiary border border-border rounded text-sm focus:outline-none focus:border-accent"
+                className="px-2 sm:px-3 py-1.5 bg-bg-tertiary border border-border rounded text-sm focus:outline-none focus:border-accent hidden sm:block"
               >
                 {REGEX_FIELDS.map((f) => (
                   <option key={f.value} value={f.value}>
@@ -275,7 +275,7 @@ export default function Logs() {
               setTimeRange(e.target.value);
               handleFilterChange();
             }}
-            className="px-3 py-1.5 bg-bg-tertiary border border-border rounded focus:outline-none focus:border-accent"
+            className="px-2 sm:px-3 py-1.5 bg-bg-tertiary border border-border rounded focus:outline-none focus:border-accent text-sm"
           >
             {TIME_RANGES.map((t) => (
               <option key={t.value} value={t.value}>
