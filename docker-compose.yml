@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:7
+    container_name: kartex-logs-mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    environment:
+      - MONGO_INITDB_DATABASE=kartex_logs
+    healthcheck:
+      test: [ "CMD", "mongosh", "--eval", "db.adminCommand('ping')" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  logging-server:
+    build: .
+    container_name: kartex-logging-server
+    ports:
+      - "8443:8443"
+      - "9514:9514/udp"
+      - "4317:4317"    # OTLP gRPC
+      - "4318:4318"    # OTLP HTTP
+    volumes:
+      - ./config.toml:/app/config.toml:ro
+      - ./certs:/app/certs:ro
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    environment:
+      - RUST_LOG=info
+      - MONGODB_URI=mongodb://mongodb:27017
+
+volumes:
+  mongodb_data:

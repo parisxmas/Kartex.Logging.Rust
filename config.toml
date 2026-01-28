@@ -1,0 +1,26 @@
+[server]
+udp_port = 9514
+https_port = 8443
+auth_secret = "change-this-secret-key-in-production"
+api_keys = ["your-api-key-here"]
+
+[mongodb]
+connection_string = "mongodb://localhost:27017"
+database_name = "kartex_logs"
+collection_name = "logs"
+
+[tls]
+cert_path = "certs/cert.pem"
+key_path = "certs/key.pem"
+
+[logging]
+level = "info"
+retention_days = 30
+
+[otlp]
+enabled = true
+grpc_port = 4317
+http_port = 4318
+enable_grpc = true
+enable_http = true
+spans_collection = "spans"

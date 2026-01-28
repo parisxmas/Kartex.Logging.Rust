@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kartex Log Viewer</title>
+    <meta name="description" content="Real-time log viewer and analytics dashboard">
+    <link rel="stylesheet" href="styles.css?v=5">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="logo">
+                <div class="logo-icon">📊</div>
+                <span class="logo-text">Kartex Logs</span>
+            </div>
+            
+            <nav class="nav-menu">
+                <a href="#" class="nav-item active" data-view="logs">
+                    <span class="nav-icon">📜</span>
+                    <span>Logs</span>
+                </a>
+                <a href="#" class="nav-item" data-view="traces">
+                    <span class="nav-icon">🔗</span>
+                    <span>Traces</span>
+                </a>
+                <a href="#" class="nav-item" data-view="live">
+                    <span class="nav-icon">🔴</span>
+                    <span>Live Stream</span>
+                </a>
+                <a href="#" class="nav-item" data-view="stats">
+                    <span class="nav-icon">📈</span>
+                    <span>Statistics</span>
+                </a>
+                <a href="#" class="nav-item" data-view="alerts">
+                    <span class="nav-icon">🚨</span>
+                    <span>Alerts</span>
+                </a>
+                <a href="#" class="nav-item" data-view="settings">
+                    <span class="nav-icon">⚙️</span>
+                    <span>Settings</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-stats">
+                <h4>Quick Stats</h4>
+                <div class="stat-item">
+                    <span class="stat-label">Total Logs</span>
+                    <span class="stat-value" id="total-logs">—</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Errors Today</span>
+                    <span class="stat-value error" id="error-count">—</span>
+                </div>
+                <h4 style="margin-top: 1rem;">Realtime</h4>
+                <div class="stat-item">
+                    <span class="stat-label">Logs/sec</span>
+                    <span class="stat-value" id="logs-per-sec">—</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Error Rate</span>
+                    <span class="stat-value error" id="error-rate">—</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">WS Status</span>
+                    <span class="stat-value" id="ws-status">●</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="header">
+                <div class="header-title">
+                    <h1>Log Explorer</h1>
+                    <p class="header-subtitle">Real-time log monitoring and analysis</p>
+                </div>
+                <div class="header-actions">
+                    <button class="btn btn-primary" id="refresh-btn">
+                        <span class="btn-icon">🔄</span>
+                        Refresh
+                    </button>
+                    <div class="auto-refresh-group">
+                        <select id="refresh-interval" class="filter-select">
+                            <option value="1000">1 sec</option>
+                            <option value="5000" selected>5 sec</option>
+                            <option value="15000">15 sec</option>
+                            <option value="60000">1 min</option>
+                            <option value="600000">10 min</option>
+                        </select>
+                        <button class="btn btn-secondary" id="auto-refresh-btn">
+                            <span class="btn-icon">▶️</span>
+                            Auto
+                        </button>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Filters -->
+            <div class="filters-container" id="filters-container">
+                <div class="filter-group">
+                    <label for="level-filter">Level</label>
+                    <select id="level-filter" class="filter-select">
+                        <option value="">All Levels</option>
+                        <option value="TRACE">Trace</option>
+                        <option value="DEBUG">Debug</option>
+                        <option value="INFO">Info</option>
+                        <option value="WARN">Warning</option>
+                        <option value="ERROR">Error</option>
+                        <option value="FATAL">Fatal</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="service-filter">Service</label>
+                    <select id="service-filter" class="filter-select">
+                        <option value="">All Services</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="search-filter">Search</label>
+                    <input type="text" id="search-filter" class="filter-input" placeholder="Search messages...">
+                </div>
+                <div class="filter-group">
+                    <label for="time-filter">Time Range</label>
+                    <select id="time-filter" class="filter-select">
+                        <option value="">All Time</option>
+                        <option value="1h">Last Hour</option>
+                        <option value="24h" selected>Last 24 Hours</option>
+                        <option value="7d">Last 7 Days</option>
+                        <option value="30d">Last 30 Days</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Logs Table -->
+            <div class="logs-container" id="logs-view">
+                <div class="logs-header">
+                    <div class="log-col log-col-time">Timestamp</div>
+                    <div class="log-col log-col-level">Level</div>
+                    <div class="log-col log-col-service">Service</div>
+                    <div class="log-col log-col-message">Message</div>
+                </div>
+                <div class="logs-body" id="logs-body">
+                    <!-- Logs will be inserted here -->
+                    <div class="loading-state">
+                        <div class="spinner"></div>
+                        <p>Loading logs...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Statistics View -->
+            <div class="stats-container hidden" id="stats-view">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h3>Logs by Level</h3>
+                        <div class="chart-container" id="level-chart"></div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Logs by Service</h3>
+                        <div class="chart-container" id="service-chart"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Live Stream View -->
+            <div class="live-container hidden" id="live-view">
+                <div class="live-metrics">
+                    <div class="metric-card">
+                        <div class="metric-value" id="live-logs-sec">0.00</div>
+                        <div class="metric-label">Logs/sec</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value error" id="live-error-rate">0.00%</div>
+                        <div class="metric-label">Error Rate</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value" id="live-errors-sec">0.00</div>
+                        <div class="metric-label">Errors/sec</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value" id="live-total-minute">0</div>
+                        <div class="metric-label">Last Minute</div>
+                    </div>
+                </div>
+                <div class="live-logs-container">
+                    <div class="live-header">
+                        <div class="live-indicator" id="live-indicator">
+                            <span class="pulse"></span>
+                            <span>LIVE</span>
+                        </div>
+                        <div class="live-controls">
+                            <button class="btn btn-secondary" id="pause-live">Pause</button>
+                            <button class="btn btn-secondary" id="clear-live">Clear</button>
+                        </div>
+                    </div>
+                    <div class="live-logs-body" id="live-logs-body">
+                        <!-- Live logs will appear here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Alerts View -->
+            <div class="alerts-container hidden" id="alerts-view">
+                <div class="alerts-header">
+                    <h2>Alert Rules</h2>
+                    <button class="btn btn-primary" id="add-alert-btn">+ Add Alert</button>
+                </div>
+                <div class="alerts-list" id="alerts-list">
+                    <!-- Alerts will be loaded here -->
+                    <div class="empty-state">
+                        <p>No alerts configured. Create your first alert rule.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Traces View -->
+            <div class="traces-container hidden" id="traces-view">
+                <div class="traces-filters">
+                    <div class="filter-group">
+                        <label for="trace-service-filter">Service</label>
+                        <select id="trace-service-filter" class="filter-select">
+                            <option value="">All Services</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="trace-time-filter">Time Range</label>
+                        <select id="trace-time-filter" class="filter-select">
+                            <option value="">All Time</option>
+                            <option value="1h">Last Hour</option>
+                            <option value="24h" selected>Last 24 Hours</option>
+                            <option value="7d">Last 7 Days</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="trace-status-filter">Status</label>
+                        <select id="trace-status-filter" class="filter-select">
+                            <option value="">All</option>
+                            <option value="OK">OK</option>
+                            <option value="ERROR">Error</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="traces-list" id="traces-list">
+                    <div class="traces-header">
+                        <div class="trace-col trace-col-name">Trace</div>
+                        <div class="trace-col trace-col-service">Service</div>
+                        <div class="trace-col trace-col-duration">Duration</div>
+                        <div class="trace-col trace-col-spans">Spans</div>
+                        <div class="trace-col trace-col-status">Status</div>
+                        <div class="trace-col trace-col-time">Time</div>
+                    </div>
+                    <div class="traces-body" id="traces-body">
+                        <div class="loading-state">
+                            <div class="spinner"></div>
+                            <p>Loading traces...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings View -->
+            <div class="settings-container hidden" id="settings-view">
+                <div class="settings-card">
+                    <h3>API Configuration</h3>
+                    <div class="form-group">
+                        <label for="api-key">API Key</label>
+                        <input type="password" id="api-key" class="filter-input" placeholder="Enter your API key">
+                    </div>
+                    <button class="btn btn-primary" id="save-settings">Save Settings</button>
+                </div>
+            </div>
+
+            <!-- Pagination -->
+            <div class="pagination" id="pagination">
+                <button class="btn btn-secondary" id="prev-page" disabled>← Previous</button>
+                <span class="page-info">Page <span id="current-page">1</span></span>
+                <button class="btn btn-secondary" id="next-page">Next →</button>
+            </div>
+        </main>
+
+        <!-- Log Detail Modal -->
+        <div class="modal hidden" id="log-modal">
+            <div class="modal-backdrop"></div>
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Log Details</h2>
+                    <button class="modal-close" id="modal-close">×</button>
+                </div>
+                <div class="modal-body" id="modal-body">
+                    <!-- Log details will be inserted here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Trace Detail Modal -->
+        <div class="modal hidden" id="trace-modal">
+            <div class="modal-backdrop"></div>
+            <div class="modal-content modal-large">
+                <div class="modal-header">
+                    <h2>Trace Details</h2>
+                    <button class="modal-close" id="trace-modal-close">×</button>
+                </div>
+                <div class="modal-body" id="trace-modal-body">
+                    <!-- Trace details will be inserted here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Alert Modal -->
+        <div class="modal hidden" id="alert-modal">
+            <div class="modal-backdrop"></div>
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 id="alert-modal-title">Create Alert</h2>
+                    <button class="modal-close" id="alert-modal-close">×</button>
+                </div>
+                <div class="modal-body">
+                    <form id="alert-form">
+                        <input type="hidden" id="alert-id">
+                        <div class="form-group">
+                            <label for="alert-name">Name</label>
+                            <input type="text" id="alert-name" class="filter-input" placeholder="High Error Rate Alert" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="alert-condition-type">Condition Type</label>
+                            <select id="alert-condition-type" class="filter-select">
+                                <option value="error_rate">Error Rate (%)</option>
+                                <option value="errors_per_second">Errors/Second</option>
+                                <option value="logs_per_second">Logs/Second</option>
+                                <option value="level_count">Level Count</option>
+                            </select>
+                        </div>
+                        <div class="form-group" id="level-select-group" style="display:none;">
+                            <label for="alert-level">Log Level</label>
+                            <select id="alert-level" class="filter-select">
+                                <option value="ERROR">ERROR</option>
+                                <option value="FATAL">FATAL</option>
+                                <option value="WARN">WARN</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="alert-threshold">Threshold</label>
+                            <input type="number" id="alert-threshold" class="filter-input" step="0.01" placeholder="0.1" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="alert-action-type">Action Type</label>
+                            <select id="alert-action-type" class="filter-select">
+                                <option value="log">Log to Console</option>
+                                <option value="webhook">Webhook</option>
+                            </select>
+                        </div>
+                        <div class="form-group" id="webhook-url-group" style="display:none;">
+                            <label for="alert-webhook-url">Webhook URL</label>
+                            <input type="url" id="alert-webhook-url" class="filter-input" placeholder="https://hooks.slack.com/...">
+                        </div>
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="alert-enabled" checked> Enabled
+                            </label>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">Save Alert</button>
+                            <button type="button" class="btn btn-secondary" id="cancel-alert">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js?v=5"></script>
+</body>
+</html>
