@@ -287,7 +287,10 @@ class ApiClient {
     level?: string;
     service?: string;
     search?: string;
+    regex?: boolean;
+    regex_field?: string;
     start_time?: string;
+    end_time?: string;
     limit?: number;
     skip?: number;
   } = {}): Promise<LogsResponse> {
@@ -295,7 +298,10 @@ class ApiClient {
     if (params.level) searchParams.append('level', params.level);
     if (params.service) searchParams.append('service', params.service);
     if (params.search) searchParams.append('search', params.search);
+    if (params.regex) searchParams.append('regex', 'true');
+    if (params.regex_field) searchParams.append('regex_field', params.regex_field);
     if (params.start_time) searchParams.append('start_time', params.start_time);
+    if (params.end_time) searchParams.append('end_time', params.end_time);
     if (params.limit) searchParams.append('limit', params.limit.toString());
     if (params.skip) searchParams.append('skip', params.skip.toString());
 

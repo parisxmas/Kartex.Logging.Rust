@@ -32,6 +32,11 @@ pub struct LogQueryParams {
     pub start_time: Option<DateTime<Utc>>,
     pub end_time: Option<DateTime<Utc>>,
     pub search: Option<String>,
+    /// Enable regex search mode
+    #[serde(default)]
+    pub regex: bool,
+    /// Field to search with regex (message, service, exception). Defaults to message.
+    pub regex_field: Option<String>,
     #[serde(default = "default_limit")]
     pub limit: i64,
     #[serde(default)]
@@ -77,6 +82,8 @@ pub async fn get_logs(
             params.start_time,
             params.end_time,
             params.search,
+            params.regex,
+            params.regex_field,
             limit,
             params.skip,
         )
@@ -672,7 +679,7 @@ async fn fetch_widget_data(
 
             let logs = state
                 .repository
-                .query_logs(log_level, service.clone(), start_time, None, None, 0, 0)
+                .query_logs(log_level, service.clone(), start_time, None, None, false, None, 0, 0)
                 .await?;
 
             Ok(serde_json::json!({ "count": logs.len() }))
@@ -685,7 +692,7 @@ async fn fetch_widget_data(
             // Fetch all logs in the time range
             let all_logs = state
                 .repository
-                .query_logs(None, service.clone(), Some(start_time), None, None, 10000, 0)
+                .query_logs(None, service.clone(), Some(start_time), None, None, false, None, 10000, 0)
                 .await?;
 
             // Bucket the logs by time
@@ -736,7 +743,7 @@ async fn fetch_widget_data(
 
             let logs = state
                 .repository
-                .query_logs(log_level, service.clone(), None, None, None, *limit as i64, 0)
+                .query_logs(log_level, service.clone(), None, None, None, false, None, *limit as i64, 0)
                 .await?;
 
             Ok(serde_json::json!({ "logs": logs }))
@@ -825,7 +832,7 @@ async fn fetch_widget_data(
             // Fetch recent logs to calculate error rates per service
             let logs = state
                 .repository
-                .query_logs(None, None, Some(start_time), None, None, 10000, 0)
+                .query_logs(None, None, Some(start_time), None, None, false, None, 10000, 0)
                 .await?;
 
             let mut service_stats: HashMap<String, (u64, u64)> = HashMap::new(); // (total, errors)

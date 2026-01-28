@@ -82,6 +82,8 @@ impl LogRepository {
         start_time: Option<DateTime<Utc>>,
         end_time: Option<DateTime<Utc>>,
         search: Option<String>,
+        regex: bool,
+        regex_field: Option<String>,
         limit: i64,
         skip: u64,
     ) -> Result<Vec<LogEntry>> {
@@ -106,9 +108,30 @@ impl LogRepository {
             filter.insert("timestamp", time_filter);
         }
 
-        // Use full-text search if search term is provided
+        // Handle search - either regex or full-text
         if let Some(search_term) = search {
-            filter.insert("$text", doc! { "$search": search_term });
+            if regex {
+                // Use regex search on specified field(s)
+                let field = regex_field.unwrap_or_else(|| "message".to_string());
+                let regex_doc = doc! { "$regex": &search_term, "$options": "i" };
+
+                match field.as_str() {
+                    "all" => {
+                        // Search across multiple fields with $or
+                        filter.insert("$or", vec![
+                            doc! { "message": &regex_doc },
+                            doc! { "service": &regex_doc },
+                            doc! { "exception": &regex_doc },
+                        ]);
+                    }
+                    _ => {
+                        filter.insert(field, regex_doc);
+                    }
+                }
+            } else {
+                // Use full-text search
+                filter.insert("$text", doc! { "$search": search_term });
+            }
         }
 
         // When using text search, we can optionally sort by text score
