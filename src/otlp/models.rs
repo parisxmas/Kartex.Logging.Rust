@@ -111,7 +111,9 @@ pub struct Span {
     pub name: String,
     pub service: String,
     pub kind: SpanKind,
+    #[serde(with = "bson::serde_helpers::chrono_datetime_as_bson_datetime")]
     pub start_time: DateTime<Utc>,
+    #[serde(with = "bson::serde_helpers::chrono_datetime_as_bson_datetime")]
     pub end_time: DateTime<Utc>,
     pub start_time_unix_nano: u64,
     pub end_time_unix_nano: u64,
@@ -130,6 +132,7 @@ pub struct Span {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub scope_version: Option<String>,
     pub source_ip: String,
+    #[serde(with = "bson::serde_helpers::chrono_datetime_as_bson_datetime")]
     pub created_at: DateTime<Utc>,
 }
 

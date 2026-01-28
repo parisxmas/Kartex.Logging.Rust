@@ -12,6 +12,20 @@ pub struct Config {
     pub gelf: GelfConfig,
     #[serde(default)]
     pub otlp: OtlpConfig,
+    #[serde(default)]
+    pub users: Vec<User>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct User {
+    pub username: String,
+    pub password: String,
+    #[serde(default = "default_role")]
+    pub role: String,
+}
+
+fn default_role() -> String {
+    "user".to_string()
 }
 
 #[derive(Debug, Deserialize, Clone)]

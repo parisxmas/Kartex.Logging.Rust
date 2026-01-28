@@ -1,0 +1,93 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply bg-bg-primary text-text-primary;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+code, .mono {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-bg-secondary;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-border rounded;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-text-secondary;
+}
+
+/* Level badges */
+.level-badge {
+  @apply px-2 py-0.5 rounded text-xs font-medium uppercase;
+}
+
+.level-TRACE, .level-trace {
+  @apply bg-level-trace/20 text-level-trace;
+}
+
+.level-DEBUG, .level-debug {
+  @apply bg-level-debug/20 text-level-debug;
+}
+
+.level-INFO, .level-info {
+  @apply bg-level-info/20 text-level-info;
+}
+
+.level-WARN, .level-warn {
+  @apply bg-level-warn/20 text-level-warn;
+}
+
+.level-ERROR, .level-error {
+  @apply bg-level-error/20 text-level-error;
+}
+
+.level-FATAL, .level-fatal {
+  @apply bg-level-fatal/20 text-level-fatal;
+}
+
+/* Status badges */
+.status-badge {
+  @apply px-2 py-0.5 rounded text-xs font-medium;
+}
+
+.status-ok {
+  @apply bg-success/20 text-success;
+}
+
+.status-error {
+  @apply bg-error/20 text-error;
+}
+
+/* WebSocket status indicator */
+.ws-indicator {
+  @apply w-2 h-2 rounded-full inline-block mr-1;
+}
+
+.ws-connected {
+  @apply bg-success;
+}
+
+.ws-disconnected {
+  @apply bg-error;
+}
+
+.ws-connecting {
+  @apply bg-warning animate-pulse;
+}

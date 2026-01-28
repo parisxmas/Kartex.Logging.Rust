@@ -7,13 +7,14 @@ use axum::{
 };
 use std::sync::Arc;
 use tower_http::cors::{Any, CorsLayer};
-use tower_http::services::ServeDir;
+use tower_http::services::{ServeDir, ServeFile};
 use tower_http::trace::TraceLayer;
 
+use crate::config::User;
 use crate::db::repository::LogRepository;
 use crate::otlp::SpanRepository;
 use crate::realtime::{AlertManager, MetricsTracker, WsBroadcaster};
-use auth::ApiAuth;
+use auth::{login_handler, ApiAuth};
 use handlers::{
     create_alert, delete_alert, get_alert, get_alerts, get_log_by_id, get_logs,
     get_realtime_metrics, get_stats, health_check, update_alert, ws_handler,
@@ -34,11 +35,13 @@ pub fn create_router(
     repository: Arc<LogRepository>,
     span_repository: Arc<SpanRepository>,
     api_keys: Vec<String>,
+    users: Vec<User>,
+    jwt_secret: String,
     broadcaster: Arc<WsBroadcaster>,
     metrics: Arc<MetricsTracker>,
     alert_manager: Arc<AlertManager>,
 ) -> Router {
-    let api_auth = ApiAuth::new(api_keys);
+    let api_auth = ApiAuth::new(api_keys, users, jwt_secret);
 
     let state = AppState {
         repository,
@@ -68,18 +71,25 @@ pub fn create_router(
             "/alerts/{id}",
             get(get_alert).put(update_alert).delete(delete_alert),
         )
-        .layer(Extension(api_auth));
+        .layer(Extension(api_auth.clone()));
+
+    // Login route (public)
+    let login_route = Router::new()
+        .route("/login", post(login_handler))
+        .with_state(api_auth);
 
     // Public routes
     let public_routes = Router::new()
         .route("/health", get(health_check))
         .route("/ws", get(ws_handler));
 
-    // Static files for web interface
-    let static_service = ServeDir::new("static");
+    // Static files for web interface with SPA fallback
+    let static_service = ServeDir::new("static")
+        .not_found_service(ServeFile::new("static/index.html"));
 
     Router::new()
         .nest("/api", api_routes)
+        .nest("/api", login_route)
         .merge(public_routes)
         .fallback_service(static_service)
         .layer(cors)

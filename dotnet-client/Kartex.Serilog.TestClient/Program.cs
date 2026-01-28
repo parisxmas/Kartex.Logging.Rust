@@ -84,8 +84,8 @@ try
                 break;
         }
 
-        // Random delay between logs (100ms - 1000ms)
-        await Task.Delay(random.Next(100, 1000), cts.Token);
+        // Random delay between logs (10ms - 1000ms)
+        await Task.Delay(random.Next(10, 500), cts.Token);
     }
 }
 catch (OperationCanceledException)

@@ -28,3 +28,9 @@ http_port = 4318
 enable_grpc = true
 enable_http = true
 spans_collection = "spans"
+
+# User authentication
+[[users]]
+username = "admin"
+password = "admin123"
+role = "admin"

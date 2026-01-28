@@ -162,6 +162,8 @@ async fn main() -> anyhow::Result<()> {
         repository,
         span_repository,
         config.server.api_keys.clone(),
+        config.users.clone(),
+        config.server.auth_secret.clone(),
         broadcaster.clone(),
         metrics.clone(),
         alert_manager.clone(),
