@@ -2,6 +2,7 @@ pub mod auth;
 pub mod handlers;
 
 use axum::{
+    middleware,
     routing::{delete, get, post, put},
     Extension, Router,
 };
@@ -12,13 +13,16 @@ use tower_http::trace::TraceLayer;
 
 use crate::config::User;
 use crate::db::repository::LogRepository;
+use crate::db::dashboard::DashboardRepository;
 use crate::otlp::SpanRepository;
 use crate::realtime::{AlertManager, MetricsTracker, WsBroadcaster};
-use auth::{login_handler, ApiAuth};
+use auth::{login_handler, auth_middleware, ApiAuth};
 use handlers::{
     create_alert, delete_alert, get_alert, get_alerts, get_log_by_id, get_logs,
     get_realtime_metrics, get_stats, health_check, update_alert, ws_handler,
     get_traces, get_trace_by_id, get_trace_for_log,
+    get_dashboards, get_dashboard, get_default_dashboard, create_dashboard,
+    update_dashboard, delete_dashboard, get_widget_data,
 };
 
 /// Shared application state
@@ -26,6 +30,7 @@ use handlers::{
 pub struct AppState {
     pub repository: Arc<LogRepository>,
     pub span_repository: Arc<SpanRepository>,
+    pub dashboard_repository: Arc<DashboardRepository>,
     pub broadcaster: Arc<WsBroadcaster>,
     pub metrics: Arc<MetricsTracker>,
     pub alert_manager: Arc<AlertManager>,
@@ -34,6 +39,7 @@ pub struct AppState {
 pub fn create_router(
     repository: Arc<LogRepository>,
     span_repository: Arc<SpanRepository>,
+    dashboard_repository: Arc<DashboardRepository>,
     api_keys: Vec<String>,
     users: Vec<User>,
     jwt_secret: String,
@@ -46,6 +52,7 @@ pub fn create_router(
     let state = AppState {
         repository,
         span_repository,
+        dashboard_repository,
         broadcaster,
         metrics,
         alert_manager,
@@ -71,6 +78,14 @@ pub fn create_router(
             "/alerts/{id}",
             get(get_alert).put(update_alert).delete(delete_alert),
         )
+        .route("/dashboards", get(get_dashboards).post(create_dashboard))
+        .route("/dashboards/default", get(get_default_dashboard))
+        .route(
+            "/dashboards/{id}",
+            get(get_dashboard).put(update_dashboard).delete(delete_dashboard),
+        )
+        .route("/widgets/data", post(get_widget_data))
+        .layer(middleware::from_fn(auth_middleware))
         .layer(Extension(api_auth.clone()));
 
     // Login route (public)

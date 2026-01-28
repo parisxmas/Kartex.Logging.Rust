@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { apiClient, RealtimeMetrics } from '../api/client';
 
 const navItems = [
+  { path: '/dashboard', label: 'Dashboard', icon: '🏠' },
   { path: '/logs', label: 'Logs', icon: '📋' },
   { path: '/traces', label: 'Traces', icon: '🔗' },
   { path: '/live', label: 'Live Stream', icon: '📡' },

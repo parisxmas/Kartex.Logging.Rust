@@ -131,8 +131,15 @@ pub struct ErrorResponse {
     pub error: String,
 }
 
+/// Authenticated user information extracted from JWT
+#[derive(Debug, Clone)]
+pub struct AuthenticatedUser {
+    pub username: String,
+    pub role: String,
+}
+
 pub async fn auth_middleware(
-    request: Request,
+    mut request: Request,
     next: Next,
 ) -> Result<Response, StatusCode> {
     let auth_header = request
@@ -154,6 +161,11 @@ pub async fn auth_middleware(
                 Some(auth) => {
                     // First check if it's a valid API key
                     if auth.valid_keys.contains(&token.to_string()) {
+                        // For API keys, use a default system user
+                        request.extensions_mut().insert(AuthenticatedUser {
+                            username: "api_key_user".to_string(),
+                            role: "admin".to_string(),
+                        });
                         return Ok(next.run(request).await);
                     }
 
@@ -166,7 +178,14 @@ pub async fn auth_middleware(
                     );
 
                     match token_data {
-                        Ok(_) => Ok(next.run(request).await),
+                        Ok(data) => {
+                            // Add authenticated user to request extensions
+                            request.extensions_mut().insert(AuthenticatedUser {
+                                username: data.claims.sub,
+                                role: data.claims.role,
+                            });
+                            Ok(next.run(request).await)
+                        }
                         Err(_) => Err(StatusCode::UNAUTHORIZED),
                     }
                 }

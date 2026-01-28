@@ -3,14 +3,18 @@ use bson::{doc, Document};
 use mongodb::{Client, Collection, Database, IndexModel};
 use mongodb::options::{ClientOptions, IndexOptions};
 
+pub mod dashboard;
 pub mod models;
 pub mod repository;
+
+pub use dashboard::{Dashboard, DashboardRepository, Widget, WidgetType, WidgetConfig, LayoutItem};
 
 pub struct DbClient {
     pub database: Database,
     pub logs_collection: Collection<Document>,
     pub alerts_collection: Collection<Document>,
     pub spans_collection: Collection<Document>,
+    pub dashboards_collection: Collection<Document>,
 }
 
 impl DbClient {
@@ -31,6 +35,7 @@ impl DbClient {
         let logs_collection = database.collection::<Document>(collection_name);
         let alerts_collection = database.collection::<Document>("alerts");
         let spans_collection = database.collection::<Document>(spans_collection_name);
+        let dashboards_collection = database.collection::<Document>("dashboards");
 
         // Create indexes for logs collection
         let timestamp_index = IndexModel::builder()
@@ -139,11 +144,33 @@ impl DbClient {
             ])
             .await?;
 
+        // Create indexes for dashboards collection
+        let dashboard_user_index = IndexModel::builder()
+            .keys(doc! { "user_id": 1 })
+            .build();
+
+        let dashboard_user_default_index = IndexModel::builder()
+            .keys(doc! { "user_id": 1, "is_default": -1 })
+            .build();
+
+        let dashboard_updated_index = IndexModel::builder()
+            .keys(doc! { "updated_at": -1 })
+            .build();
+
+        dashboards_collection
+            .create_indexes(vec![
+                dashboard_user_index,
+                dashboard_user_default_index,
+                dashboard_updated_index,
+            ])
+            .await?;
+
         Ok(Self {
             database,
             logs_collection,
             alerts_collection,
             spans_collection,
+            dashboards_collection,
         })
     }
 }

@@ -12,7 +12,7 @@ use tracing::{error, info};
 use tracing_subscriber::EnvFilter;
 
 use config::Config;
-use db::{DbClient, repository::LogRepository};
+use db::{DbClient, repository::LogRepository, DashboardRepository};
 use otlp::SpanRepository;
 use realtime::{AlertManager, MetricsTracker, WsBroadcaster};
 use udp::UdpServer;
@@ -43,8 +43,9 @@ async fn main() -> anyhow::Result<()> {
     let repository = Arc::new(LogRepository::new(db_client.logs_collection.clone()));
     let span_repository = Arc::new(SpanRepository::new(
         db_client.spans_collection,
-        db_client.logs_collection,
+        db_client.logs_collection.clone(),
     ));
+    let dashboard_repository = Arc::new(DashboardRepository::new(db_client.dashboards_collection));
 
     // Initialize realtime components
     let metrics = MetricsTracker::new();
@@ -161,6 +162,7 @@ async fn main() -> anyhow::Result<()> {
     let api_router = api::create_router(
         repository,
         span_repository,
+        dashboard_repository,
         config.server.api_keys.clone(),
         config.users.clone(),
         config.server.auth_secret.clone(),

@@ -98,6 +98,133 @@ export interface TraceDetail {
   logs: LogEntry[];
 }
 
+// Dashboard types
+export interface LayoutItem {
+  i: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  minW?: number;
+  minH?: number;
+}
+
+export type WidgetType =
+  | 'log_count'
+  | 'error_rate_chart'
+  | 'recent_logs'
+  | 'trace_latency_histogram'
+  | 'service_health'
+  | 'custom_metric';
+
+export type CustomMetricType =
+  | 'logs_per_second'
+  | 'errors_per_second'
+  | 'error_rate'
+  | 'logs_last_minute'
+  | 'total_logs';
+
+export interface WidgetConfigLogCount {
+  type: 'log_count';
+  level?: string;
+  service?: string;
+  time_range: number;
+}
+
+export interface WidgetConfigErrorRateChart {
+  type: 'error_rate_chart';
+  time_range: number;
+  bucket_size: number;
+  service?: string;
+}
+
+export interface WidgetConfigRecentLogs {
+  type: 'recent_logs';
+  limit: number;
+  level?: string;
+  service?: string;
+}
+
+export interface WidgetConfigTraceLatencyHistogram {
+  type: 'trace_latency_histogram';
+  time_range: number;
+  service?: string;
+  buckets: number;
+}
+
+export interface WidgetConfigServiceHealth {
+  type: 'service_health';
+  time_window: number;
+  error_threshold: number;
+}
+
+export interface WidgetConfigCustomMetric {
+  type: 'custom_metric';
+  metric_type: CustomMetricType;
+}
+
+export type WidgetConfig =
+  | WidgetConfigLogCount
+  | WidgetConfigErrorRateChart
+  | WidgetConfigRecentLogs
+  | WidgetConfigTraceLatencyHistogram
+  | WidgetConfigServiceHealth
+  | WidgetConfigCustomMetric;
+
+export interface Widget {
+  id: string;
+  widget_type: WidgetType;
+  title: string;
+  config: WidgetConfig;
+  refresh_interval: number;
+}
+
+export interface Dashboard {
+  _id?: { $oid: string } | string;
+  user_id: string;
+  name: string;
+  is_default: boolean;
+  layout: LayoutItem[];
+  widgets: Widget[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DashboardsResponse {
+  dashboards: Dashboard[];
+  count: number;
+}
+
+export interface CreateDashboardRequest {
+  name: string;
+  is_default?: boolean;
+  layout?: LayoutItem[];
+  widgets?: Widget[];
+}
+
+export interface UpdateDashboardRequest {
+  name?: string;
+  is_default?: boolean;
+  layout?: LayoutItem[];
+  widgets?: Widget[];
+}
+
+export interface WidgetDataQuery {
+  widget_id: string;
+  widget_type: WidgetType;
+  config: WidgetConfig;
+}
+
+export interface WidgetDataItem {
+  widget_id: string;
+  data: unknown;
+  error?: string;
+}
+
+export interface WidgetDataResponse {
+  data: WidgetDataItem[];
+}
+
 class ApiClient {
   private token: string | null = null;
 
@@ -213,6 +340,44 @@ class ApiClient {
 
   async getTraceForLog(logId: string): Promise<TraceDetail> {
     return this.request<TraceDetail>(`/logs/${logId}/trace`);
+  }
+
+  // Dashboard methods
+  async getDashboards(): Promise<DashboardsResponse> {
+    return this.request<DashboardsResponse>('/dashboards');
+  }
+
+  async getDashboard(id: string): Promise<Dashboard> {
+    return this.request<Dashboard>(`/dashboards/${id}`);
+  }
+
+  async getDefaultDashboard(): Promise<Dashboard> {
+    return this.request<Dashboard>('/dashboards/default');
+  }
+
+  async createDashboard(dashboard: CreateDashboardRequest): Promise<{ id: string }> {
+    return this.request<{ id: string }>('/dashboards', {
+      method: 'POST',
+      body: JSON.stringify(dashboard),
+    });
+  }
+
+  async updateDashboard(id: string, updates: UpdateDashboardRequest): Promise<void> {
+    await this.request<void>(`/dashboards/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+    });
+  }
+
+  async deleteDashboard(id: string): Promise<void> {
+    await this.request<void>(`/dashboards/${id}`, { method: 'DELETE' });
+  }
+
+  async getWidgetData(widgets: WidgetDataQuery[]): Promise<WidgetDataResponse> {
+    return this.request<WidgetDataResponse>('/widgets/data', {
+      method: 'POST',
+      body: JSON.stringify({ widgets }),
+    });
   }
 }
 
