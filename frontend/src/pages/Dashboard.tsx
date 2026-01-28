@@ -10,7 +10,7 @@ export default function Dashboard() {
   const [dashboards, setDashboards] = useState<DashboardType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isEditMode, setIsEditMode] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(true);
   const [showAddWidget, setShowAddWidget] = useState(false);
   const [configureWidgetId, setConfigureWidgetId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -71,7 +71,9 @@ export default function Dashboard() {
   const saveDashboard = useCallback(async (updates: Partial<DashboardType>) => {
     if (!dashboard?._id) return;
 
-    const id = typeof dashboard._id === 'string' ? dashboard._id : dashboard._id.$oid;
+    const id = typeof dashboard._id === 'string' ? dashboard._id : dashboard._id?.$oid;
+    if (!id) return;
+
     setIsSaving(true);
 
     try {
