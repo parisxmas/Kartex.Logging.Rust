@@ -1,24 +1,37 @@
 # Kartex Logging Server
 
-A high-performance logging server built in Rust that accepts UDP log packets with authentication, stores them in MongoDB, and provides HTTPS API endpoints with a modern web interface.
+A high-performance, multi-protocol logging and tracing server built in Rust. Supports UDP, GELF, OpenTelemetry OTLP, stores data in MongoDB, and provides a modern web interface with real-time streaming.
 
 ## Features
 
-- **UDP Log Ingestion** - High-performance UDP server accepting authenticated log packets
-- **HMAC-SHA256 Authentication** - Secure authentication using HMAC signatures
-- **Serilog Compatible** - Native support for Serilog CLEF (Compact Log Event Format)
+- **Multi-Protocol Ingestion**
+  - UDP with HMAC-SHA256 authentication (port 9514)
+  - GELF UDP for Graylog-compatible clients (port 12201)
+  - OpenTelemetry OTLP gRPC (port 4317)
+  - OpenTelemetry OTLP HTTP/JSON (port 4318)
+- **Distributed Tracing** - Full trace collection with span visualization
+- **Log-Trace Correlation** - Link logs to traces via trace_id
+- **Real-time Streaming** - WebSocket-based live log and trace updates
+- **Alerting System** - Configurable alerts with webhook notifications
+- **Metrics Dashboard** - Real-time metrics and statistics
 - **MongoDB Storage** - Efficient document storage with automatic indexing
-- **HTTPS API** - RESTful API for querying logs with filtering and pagination
-- **Web Interface** - Modern, responsive dashboard for log viewing and analysis
-- **Real-time Updates** - Auto-refresh capability for live monitoring
+- **HTTPS API** - RESTful API for querying logs and traces
+- **Web Interface** - Modern dashboard with logs, traces, and alerts views
 - **Docker Ready** - Production-ready Docker and Docker Compose configuration
 
 ## Quick Start
 
-### Prerequisites
+### Using Docker Compose (Recommended)
 
-- Rust 1.75+ (or Docker)
-- MongoDB 6.0+
+```bash
+docker-compose up -d
+```
+
+This starts:
+- MongoDB on port 27017
+- Kartex Logging Server with all protocols enabled
+
+Access the web interface at http://localhost:8443
 
 ### Running Locally
 
@@ -28,14 +41,7 @@ A high-performance logging server built in Rust that accepts UDP log packets wit
    ```
 
 2. **Configure the server:**
-   Edit `config.toml` with your settings:
-   ```toml
-   [server]
-   udp_port = 9514
-   https_port = 8443
-   auth_secret = "your-secret-key"
-   api_keys = ["your-api-key"]
-   ```
+   Edit `config.toml` with your settings.
 
 3. **Build and run:**
    ```bash
@@ -43,256 +49,165 @@ A high-performance logging server built in Rust that accepts UDP log packets wit
    cargo run --release
    ```
 
-4. **Access the web interface:**
-   Open http://localhost:8443 in your browser
+## Protocol Support
 
-### Using Docker Compose
+### UDP with HMAC Authentication (Port 9514)
 
-```bash
-docker-compose up -d
-```
-
-## UDP Packet Format
-
-Packets should follow this structure:
+Packets follow this structure:
 ```
 [32-byte HMAC-SHA256 signature][JSON payload]
 ```
 
-### Standard JSON Payload Schema
-
+#### Standard JSON Format
 ```json
 {
   "timestamp": "2024-01-27T12:00:00Z",
   "level": "INFO",
   "service": "my-service",
   "message": "Log message here",
-  "metadata": {
-    "key": "value"
-  }
+  "metadata": { "key": "value" }
 }
 ```
 
-### Serilog CLEF Format (Compact Log Event Format)
-
-The server auto-detects and parses Serilog's CLEF format:
-
+#### Serilog CLEF Format
 ```json
 {
   "@t": "2024-01-27T12:00:00Z",
-  "@m": "User john.doe logged in from 10.0.0.1",
-  "@mt": "User {Username} logged in from {IpAddress}",
+  "@m": "User john.doe logged in",
+  "@mt": "User {Username} logged in",
   "@l": "Information",
-  "@x": "System.Exception: Error details...",
-  "@i": "a1b2c3d4",
   "@tr": "0123456789abcdef",
   "@sp": "abcd1234",
   "SourceContext": "MyApp.AuthService",
-  "Username": "john.doe",
-  "IpAddress": "10.0.0.1"
+  "Username": "john.doe"
 }
 ```
 
-| Field | Description |
-|-------|-------------|
-| `@t` | Timestamp (required) |
-| `@m` | Rendered message |
-| `@mt` | Message template with placeholders |
-| `@l` | Log level (Verbose, Debug, Information, Warning, Error, Fatal) |
-| `@x` | Exception details |
-| `@i` | Event ID |
-| `@tr` | Trace ID for distributed tracing |
-| `@sp` | Span ID for distributed tracing |
-| `SourceContext` | Logger name (used as service name) |
-| Other fields | Stored as metadata |
+### GELF UDP (Port 12201)
 
-### Supported Log Levels
+Graylog Extended Log Format for compatibility with existing logging infrastructure.
 
-Standard format:
-- `TRACE`, `DEBUG`, `INFO`, `WARN`, `ERROR`, `FATAL`
+```json
+{
+  "version": "1.1",
+  "host": "example.org",
+  "short_message": "A short message",
+  "full_message": "Full message with details",
+  "timestamp": 1234567890.123,
+  "level": 6,
+  "facility": "my-service",
+  "_user_id": 42,
+  "_request_id": "abc-123"
+}
+```
 
-Serilog format (automatically mapped):
-- `Verbose` -> TRACE
-- `Debug` -> DEBUG
-- `Information` -> INFO
-- `Warning` -> WARN
-- `Error` -> ERROR
-- `Fatal` -> FATAL
+Features:
+- Supports GELF 1.0 and 1.1
+- Gzip and Zlib compression
+- Custom fields (prefixed with `_`)
+- Syslog severity levels (0-7)
+
+#### GELF Level Mapping
+| Syslog Level | Name | Internal Level |
+|--------------|------|----------------|
+| 0-2 | Emergency/Alert/Critical | FATAL |
+| 3 | Error | ERROR |
+| 4 | Warning | WARN |
+| 5-6 | Notice/Informational | INFO |
+| 7 | Debug | DEBUG |
+
+### OpenTelemetry OTLP
+
+#### gRPC (Port 4317)
+```python
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+from opentelemetry.exporter.otlp.proto.grpc._log_exporter import OTLPLogExporter
+
+trace_exporter = OTLPSpanExporter(endpoint="localhost:4317", insecure=True)
+log_exporter = OTLPLogExporter(endpoint="localhost:4317", insecure=True)
+```
+
+#### HTTP/JSON (Port 4318)
+```bash
+# Send traces
+curl -X POST http://localhost:4318/v1/traces \
+  -H "Content-Type: application/json" \
+  -d '{"resourceSpans":[...]}'
+
+# Send logs
+curl -X POST http://localhost:4318/v1/logs \
+  -H "Content-Type: application/json" \
+  -d '{"resourceLogs":[...]}'
+```
 
 ## API Endpoints
 
-### Query Logs
-```
-GET /api/logs?level=ERROR&service=api&search=timeout&limit=50&skip=0
-```
+### Logs
 
-Query parameters:
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/logs` | Query logs with filters |
+| `GET /api/logs/{id}` | Get log by ID |
+| `GET /api/logs/{id}/trace` | Get trace for a log entry |
+| `GET /api/stats` | Get log statistics |
+
+Query parameters for `/api/logs`:
 - `level` - Filter by log level
 - `service` - Filter by service name
-- `start_time` - ISO 8601 timestamp for range start
-- `end_time` - ISO 8601 timestamp for range end
-- `search` - Full-text search in message
-- `limit` - Number of results (max 1000)
-- `skip` - Offset for pagination
+- `start_time` / `end_time` - Time range (ISO 8601)
+- `search` - Full-text search
+- `trace_id` - Filter by trace ID
+- `limit` / `skip` - Pagination
 
-### Get Log by ID
-```
-GET /api/logs/{id}
-```
+### Traces
 
-### Get Statistics
-```
-GET /api/stats
-```
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/traces` | List trace summaries |
+| `GET /api/traces/{trace_id}` | Get full trace with spans and correlated logs |
 
-Returns counts by level and service.
+Query parameters for `/api/traces`:
+- `service` - Filter by service name
+- `start_time` / `end_time` - Time range
+- `limit` / `skip` - Pagination
 
-### Health Check
-```
-GET /health
-```
+### Alerts
 
-## Example Client (Python)
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/alerts` | List alert rules |
+| `POST /api/alerts` | Create alert rule |
+| `DELETE /api/alerts/{id}` | Delete alert rule |
+| `GET /api/alerts/history` | Get triggered alerts history |
 
-```python
-import socket
-import hmac
-import hashlib
-import json
-from datetime import datetime
+### Real-time
 
-def send_log(host, port, secret, level, service, message, metadata=None):
-    # Create payload
-    payload = json.dumps({
-        "timestamp": datetime.utcnow().isoformat() + "Z",
-        "level": level,
-        "service": service,
-        "message": message,
-        "metadata": metadata or {}
-    }).encode()
-    
-    # Generate HMAC signature
-    signature = hmac.new(
-        secret.encode(),
-        payload,
-        hashlib.sha256
-    ).digest()
-    
-    # Send UDP packet
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.sendto(signature + payload, (host, port))
-    sock.close()
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/ws` | WebSocket for real-time logs, traces, and metrics |
+| `GET /api/metrics` | Current metrics snapshot |
 
-# Usage
-send_log(
-    "localhost", 9514,
-    "change-this-secret-key-in-production",
-    "ERROR",
-    "my-service",
-    "Database connection failed",
-    {"error_code": "DB_TIMEOUT"}
-)
-```
+### Health
 
-## Example Client (Rust)
+| Endpoint | Description |
+|----------|-------------|
+| `GET /health` | Health check |
 
-```rust
-use hmac::{Hmac, Mac};
-use sha2::Sha256;
-use std::net::UdpSocket;
+## WebSocket Messages
 
-fn send_log(host: &str, port: u16, secret: &str, payload: &[u8]) {
-    let mut mac = Hmac::<Sha256>::new_from_slice(secret.as_bytes()).unwrap();
-    mac.update(payload);
-    let signature = mac.finalize().into_bytes();
+Connect to `/api/ws` for real-time updates:
 
-    let mut packet = signature.to_vec();
-    packet.extend_from_slice(payload);
-
-    let socket = UdpSocket::bind("0.0.0.0:0").unwrap();
-    socket.send_to(&packet, format!("{}:{}", host, port)).unwrap();
-}
-```
-
-## Example Client (C# / .NET with Serilog)
-
-First, create a custom Serilog sink for Kartex:
-
-```csharp
-using System.Net.Sockets;
-using System.Security.Cryptography;
-using System.Text;
-using System.Text.Json;
-using Serilog.Core;
-using Serilog.Events;
-using Serilog.Formatting.Compact;
-
-public class KartexUdpSink : ILogEventSink
-{
-    private readonly string _host;
-    private readonly int _port;
-    private readonly byte[] _secret;
-    private readonly UdpClient _client;
-    private readonly CompactJsonFormatter _formatter;
-
-    public KartexUdpSink(string host, int port, string secret)
-    {
-        _host = host;
-        _port = port;
-        _secret = Encoding.UTF8.GetBytes(secret);
-        _client = new UdpClient();
-        _formatter = new CompactJsonFormatter();
-    }
-
-    public void Emit(LogEvent logEvent)
-    {
-        using var writer = new StringWriter();
-        _formatter.Format(logEvent, writer);
-        var payload = Encoding.UTF8.GetBytes(writer.ToString());
-
-        // Generate HMAC-SHA256 signature
-        using var hmac = new HMACSHA256(_secret);
-        var signature = hmac.ComputeHash(payload);
-
-        // Combine signature + payload
-        var packet = new byte[signature.Length + payload.Length];
-        Buffer.BlockCopy(signature, 0, packet, 0, signature.Length);
-        Buffer.BlockCopy(payload, 0, packet, signature.Length, payload.Length);
-
-        _client.Send(packet, packet.Length, _host, _port);
-    }
-}
-
-// Extension method for easy configuration
-public static class KartexSinkExtensions
-{
-    public static LoggerConfiguration KartexUdp(
-        this LoggerSinkConfiguration config,
-        string host = "localhost",
-        int port = 9514,
-        string secret = "your-secret")
-    {
-        return config.Sink(new KartexUdpSink(host, port, secret));
-    }
-}
-```
-
-Configure Serilog to use the Kartex sink:
-
-```csharp
-Log.Logger = new LoggerConfiguration()
-    .MinimumLevel.Debug()
-    .Enrich.FromLogContext()
-    .Enrich.WithProperty("Application", "MyApp")
-    .WriteTo.KartexUdp(
-        host: "localhost",
-        port: 9514,
-        secret: "change-this-secret-key-in-production")
-    .CreateLogger();
-
-// Usage
-Log.Information("User {Username} logged in from {IpAddress}", "john.doe", "10.0.0.1");
-Log.Error(exception, "Failed to process order {OrderId}", orderId);
+```javascript
+const ws = new WebSocket('ws://localhost:8443/api/ws');
+ws.onmessage = (event) => {
+  const msg = JSON.parse(event.data);
+  switch (msg.type) {
+    case 'log': console.log('New log:', msg.data); break;
+    case 'span': console.log('New span:', msg.data); break;
+    case 'metrics': console.log('Metrics:', msg.data); break;
+    case 'alert': console.log('Alert triggered:', msg.data); break;
+  }
+};
 ```
 
 ## Configuration
@@ -301,15 +216,27 @@ Log.Error(exception, "Failed to process order {OrderId}", orderId);
 
 ```toml
 [server]
-udp_port = 9514           # UDP port for log ingestion
-https_port = 8443         # HTTPS port for API and web UI
-auth_secret = "secret"    # HMAC secret for UDP authentication
-api_keys = ["key1"]       # Valid API keys for HTTPS endpoints
+udp_port = 9514
+https_port = 8443
+auth_secret = "change-this-secret-key-in-production"
+api_keys = ["your-api-key"]
 
 [mongodb]
 connection_string = "mongodb://localhost:27017"
 database_name = "kartex_logs"
 collection_name = "logs"
+
+[gelf]
+enabled = true
+udp_port = 12201
+
+[otlp]
+enabled = true
+grpc_port = 4317
+http_port = 4318
+enable_grpc = true
+enable_http = true
+spans_collection = "spans"
 
 [tls]
 cert_path = "certs/cert.pem"
@@ -319,6 +246,167 @@ key_path = "certs/key.pem"
 level = "info"
 retention_days = 30
 ```
+
+## Example Clients
+
+### Python (UDP)
+
+```python
+import socket
+import hmac
+import hashlib
+import json
+from datetime import datetime
+
+def send_log(host, port, secret, level, service, message):
+    payload = json.dumps({
+        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "level": level,
+        "service": service,
+        "message": message
+    }).encode()
+
+    signature = hmac.new(secret.encode(), payload, hashlib.sha256).digest()
+
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.sendto(signature + payload, (host, port))
+
+send_log("localhost", 9514, "your-secret", "INFO", "my-app", "Hello!")
+```
+
+### Python (GELF)
+
+```python
+import socket
+import json
+import time
+
+def send_gelf(host, port, message, level=6, facility="my-app", **extra):
+    gelf = {
+        "version": "1.1",
+        "host": socket.gethostname(),
+        "short_message": message,
+        "timestamp": time.time(),
+        "level": level,
+        "facility": facility,
+        **{f"_{k}": v for k, v in extra.items()}
+    }
+
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.sendto(json.dumps(gelf).encode(), (host, port))
+
+send_gelf("localhost", 12201, "User logged in", user_id=42, request_id="abc-123")
+```
+
+### Python (OpenTelemetry)
+
+```python
+from opentelemetry import trace
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+
+# Setup
+trace.set_tracer_provider(TracerProvider())
+exporter = OTLPSpanExporter(endpoint="localhost:4317", insecure=True)
+trace.get_tracer_provider().add_span_processor(BatchSpanProcessor(exporter))
+
+# Create traces
+tracer = trace.get_tracer("my-service")
+with tracer.start_as_current_span("my-operation") as span:
+    span.set_attribute("user.id", 42)
+    # Your code here
+```
+
+### C# / .NET (Serilog)
+
+```csharp
+// Custom Serilog sink for Kartex UDP
+public class KartexUdpSink : ILogEventSink
+{
+    private readonly UdpClient _client;
+    private readonly byte[] _secret;
+    private readonly CompactJsonFormatter _formatter = new();
+
+    public KartexUdpSink(string host, int port, string secret)
+    {
+        _client = new UdpClient(host, port);
+        _secret = Encoding.UTF8.GetBytes(secret);
+    }
+
+    public void Emit(LogEvent logEvent)
+    {
+        using var writer = new StringWriter();
+        _formatter.Format(logEvent, writer);
+        var payload = Encoding.UTF8.GetBytes(writer.ToString());
+
+        using var hmac = new HMACSHA256(_secret);
+        var signature = hmac.ComputeHash(payload);
+
+        var packet = signature.Concat(payload).ToArray();
+        _client.Send(packet, packet.Length);
+    }
+}
+
+// Usage
+Log.Logger = new LoggerConfiguration()
+    .WriteTo.Sink(new KartexUdpSink("localhost", 9514, "your-secret"))
+    .CreateLogger();
+```
+
+### C# / .NET (OpenTelemetry)
+
+```csharp
+using var tracerProvider = Sdk.CreateTracerProviderBuilder()
+    .AddSource("MyApp")
+    .AddOtlpExporter(o => {
+        o.Endpoint = new Uri("http://localhost:4317");
+        o.Protocol = OtlpExportProtocol.Grpc;
+    })
+    .Build();
+
+var tracer = tracerProvider.GetTracer("MyApp");
+using var span = tracer.StartActiveSpan("my-operation");
+span.SetAttribute("user.id", 42);
+```
+
+## Docker Compose
+
+```yaml
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+
+  logging-server:
+    build: .
+    ports:
+      - "8443:8443"      # HTTP API & Web UI
+      - "9514:9514/udp"  # UDP with HMAC auth
+      - "4317:4317"      # OTLP gRPC
+      - "4318:4318"      # OTLP HTTP
+      - "12201:12201/udp" # GELF UDP
+    depends_on:
+      - mongodb
+
+volumes:
+  mongodb_data:
+```
+
+## Web Interface
+
+The web interface at http://localhost:8443 provides:
+
+- **Logs View** - Search, filter, and browse logs with real-time updates
+- **Traces View** - Waterfall visualization of distributed traces
+- **Alerts View** - Configure and monitor alert rules
+- **Log Detail Modal** - Full log details with trace correlation
+- **Trace Detail Modal** - Span timeline with attributes and correlated logs
 
 ## Development
 
@@ -331,15 +419,6 @@ cargo test
 
 # Build release
 cargo build --release
-
-# Test client (standard format)
-python test_client.py
-
-# Test client (Serilog CLEF format)
-python test_client.py --format serilog
-
-# Test client (mixed format)
-python test_client.py --format mixed
 ```
 
 ## License
