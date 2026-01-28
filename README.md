@@ -7,6 +7,7 @@ A high-performance, multi-protocol logging and tracing server built in Rust. Sup
 - **Multi-Protocol Ingestion**
   - UDP with HMAC-SHA256 authentication (port 9514)
   - GELF UDP for Graylog-compatible clients (port 12201)
+  - Syslog UDP (port 514) and TCP (port 1514) - RFC 3164 & RFC 5424
   - OpenTelemetry OTLP gRPC (port 4317)
   - OpenTelemetry OTLP HTTP/JSON (port 4318)
 - **Distributed Tracing** - Full trace collection with span visualization
@@ -117,6 +118,45 @@ Features:
 | 4 | Warning | WARN |
 | 5-6 | Notice/Informational | INFO |
 | 7 | Debug | DEBUG |
+
+### Syslog (UDP Port 514, TCP Port 1514)
+
+Supports both RFC 3164 (BSD) and RFC 5424 (modern) syslog formats with automatic detection.
+
+#### RFC 3164 (BSD Format)
+```
+<PRI>Mmm dd hh:mm:ss HOSTNAME TAG: MESSAGE
+```
+
+Example:
+```bash
+echo "<134>Jan 28 10:30:00 myhost myapp[1234]: User logged in successfully" | nc -u localhost 514
+```
+
+#### RFC 5424 (Modern Format)
+```
+<PRI>VERSION TIMESTAMP HOSTNAME APP-NAME PROCID MSGID [STRUCTURED-DATA] MSG
+```
+
+Example:
+```bash
+echo "<134>1 2024-01-28T10:30:00.123Z myhost myapp 1234 ID47 [exampleSDID@32473 user=\"john\"] User logged in" | nc localhost 1514
+```
+
+#### Syslog Severity Mapping
+| Syslog Level | Name | Internal Level |
+|--------------|------|----------------|
+| 0-1 | Emergency/Alert | FATAL |
+| 2-3 | Critical/Error | ERROR |
+| 4 | Warning | WARN |
+| 5-6 | Notice/Info | INFO |
+| 7 | Debug | DEBUG |
+
+Features:
+- Auto-detection of RFC 3164 vs RFC 5424 format
+- Structured data parsing (RFC 5424)
+- TCP with octet-counting framing (RFC 5425)
+- Facility and severity extraction
 
 ### OpenTelemetry OTLP
 
@@ -304,6 +344,14 @@ enable_grpc = true
 enable_http = true
 spans_collection = "spans"
 
+[syslog]
+enabled = true
+udp_enabled = true
+tcp_enabled = true
+udp_port = 514
+tcp_port = 1514
+max_message_size = 65535
+
 [tls]
 cert_path = "certs/cert.pem"
 key_path = "certs/key.pem"
@@ -452,11 +500,13 @@ services:
   logging-server:
     build: .
     ports:
-      - "8443:8443"      # HTTP API & Web UI
-      - "9514:9514/udp"  # UDP with HMAC auth
-      - "4317:4317"      # OTLP gRPC
-      - "4318:4318"      # OTLP HTTP
+      - "8443:8443"       # HTTP API & Web UI
+      - "9514:9514/udp"   # UDP with HMAC auth
+      - "4317:4317"       # OTLP gRPC
+      - "4318:4318"       # OTLP HTTP
       - "12201:12201/udp" # GELF UDP
+      - "514:514/udp"     # Syslog UDP
+      - "1514:1514"       # Syslog TCP
     depends_on:
       - mongodb
 
@@ -466,7 +516,7 @@ volumes:
 
 ## Web Interface
 
-The web interface at http://localhost:8443 provides:
+The web interface at http://localhost:8443 provides a fully **mobile-responsive** design:
 
 - **Dashboard** - Customizable drag-and-drop widgets with persistent layouts
   - Log Count - Total/filtered log counts
@@ -478,10 +528,18 @@ The web interface at http://localhost:8443 provides:
   - Live Stream - Real-time log streaming with level/service filters
   - Plugin Widget - Load custom JavaScript or WASM plugins
 - **Logs View** - Search, filter, and browse logs with real-time updates
+  - Visual Query Builder with save/load functionality
+  - Regex search support with field selection
+- **Live Stream** - Real-time WebSocket log streaming
+  - Simple/Builder filter toggle
+  - Query Builder with conditions and operators
+  - Save and load filter presets
+  - Real-time client-side filtering
 - **Traces View** - Waterfall visualization of distributed traces
 - **Alerts View** - Configure and monitor alert rules
 - **Log Detail Modal** - Full log details with trace correlation
 - **Trace Detail Modal** - Span timeline with attributes and correlated logs
+- **Mobile Support** - Responsive layouts with hamburger menu and card views
 
 ## Plugin Development
 
